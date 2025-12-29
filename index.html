@@ -1,0 +1,72 @@
+
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aplikasi Surat Cuti Guru</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Balinese&family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @page {
+        margin: 0;
+      }
+      @media print {
+        body {
+          margin: 0;
+          background: white !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .paper {
+          margin: 0 !important;
+          border: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          width: 100% !important;
+          height: auto !important;
+          page-break-after: always;
+          transform: none !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+      .paper {
+        background: white;
+        margin: 0 auto;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        box-sizing: border-box;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .f4 { width: 215mm; height: 330mm; min-width: 215mm; }
+      .a4 { width: 210mm; height: 297mm; min-width: 210mm; }
+      .letter { width: 216mm; height: 279mm; min-width: 216mm; }
+      .legal { width: 216mm; height: 356mm; min-width: 216mm; }
+      
+      .font-aksara-bali { font-family: 'Noto Sans Balinese', serif; }
+      .font-document { font-family: 'Noto Serif', serif; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5"
+  }
+}
+</script>
+</head>
+  <body class="bg-gray-100">
+    <div id="root"></div>
+    <!-- Vite akan secara otomatis mencari file ini di root -->
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
