@@ -1,0 +1,5 @@
+{
+  "name": "Aplikasi Surat Cuti Guru",
+  "description": "Aplikasi untuk membuat dan mencetak berbagai jenis surat cuti untuk guru dan pegawai, dengan fitur kalender Bali otomatis dan dukungan mode offline.",
+  "requestFramePermissions": []
+}
