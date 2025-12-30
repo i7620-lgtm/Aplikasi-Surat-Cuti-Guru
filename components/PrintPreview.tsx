@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { FormData, PaperSize } from '../types';
 import { LetterType } from '../types';
 import DocumentViewer from './letters/DocumentViewer';
-import { PrinterIcon, ZoomIn } from 'lucide-react';
+import { PrinterIcon, ZoomIn, Settings2 } from 'lucide-react';
 
 interface PrintPreviewProps {
   formData: FormData;
@@ -11,9 +11,9 @@ interface PrintPreviewProps {
 
 const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
   const [selectedLetter, setSelectedLetter] = useState<LetterType>(LetterType.SURAT_IZIN_KEPSEK);
-  const [paperSize, setPaperSize] = useState<PaperSize>('a4');
+  const [paperSize, setPaperSize] = useState<PaperSize>('f4'); // Default ke F4
   const [scale, setScale] = useState(1);
-  const previewAreaRef = useRef<HTMLDivElement>(null); // Ref for the actual scrolling preview area
+  const previewAreaRef = useRef<HTMLDivElement>(null);
 
   const paperDimensions: Record<PaperSize, { w: number; h: number }> = {
     a4: { w: 210, h: 297 },
@@ -24,7 +24,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
 
   const calculateScale = useCallback(() => {
     if (previewAreaRef.current) {
-      const safetyMargin = 32; // Consistent 16px visual gap on all sides
+      const safetyMargin = 64; 
       
       const availableWidth = previewAreaRef.current.clientWidth - safetyMargin;
       const availableHeight = previewAreaRef.current.clientHeight - safetyMargin;
@@ -35,7 +35,6 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
       const scaleX = availableWidth / paperWidthPx;
       const scaleY = availableHeight / paperHeightPx;
       
-      // Scale is determined by the most restrictive dimension (width or height) and capped at 100%.
       const newScale = Math.min(1, scaleX, scaleY);
       
       setScale(prev => (Math.abs(prev - newScale) > 0.005 ? newScale : prev));
@@ -43,8 +42,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
   }, [paperSize]);
 
   useEffect(() => {
-    // A small delay allows the layout to stabilize before the initial calculation.
-    const timer = setTimeout(calculateScale, 50);
+    const timer = setTimeout(calculateScale, 100);
 
     const previewArea = previewAreaRef.current;
     if (!previewArea) return () => clearTimeout(timer);
@@ -59,63 +57,72 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
   }, [calculateScale]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden print:overflow-visible print:block">
-      <div className="p-4 bg-white rounded-lg shadow-md mb-8 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
+    <div className="flex flex-col h-[calc(100vh-8rem)] overflow-hidden print:h-auto print:overflow-visible print:block">
+      {/* Control Panel */}
+      <div className="p-4 bg-white rounded-xl shadow-sm mb-6 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden border border-slate-200">
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <div className="w-full md:w-auto">
-            <label htmlFor="letter-type" className="block text-sm font-medium text-gray-700 mb-1">Jenis Dokumen Cetak</label>
-            <select
-              id="letter-type"
-              value={selectedLetter}
-              onChange={(e) => setSelectedLetter(e.target.value as LetterType)}
-              className="w-full mt-1 block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-            >
-              <option value={LetterType.SURAT_IZIN_KEPSEK}>Surat Pengantar (Kepala Sekolah)</option>
-              <option value={LetterType.BLANGKO_CUTI}>Blangko Permintaan Cuti</option>
-              <option value={LetterType.SURAT_IZIN_DINAS_TAHUNAN}>Surat Keputusan Cuti (Dinas)</option>
-            </select>
+            <label htmlFor="letter-type" className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Jenis Dokumen</label>
+            <div className="relative">
+              <select
+                id="letter-type"
+                value={selectedLetter}
+                onChange={(e) => setSelectedLetter(e.target.value as LetterType)}
+                className="w-full mt-1 block pl-3 pr-10 py-2.5 text-sm font-medium border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-slate-50"
+              >
+                <option value={LetterType.SURAT_IZIN_KEPSEK}>Surat Pengantar (Kepala Sekolah)</option>
+                <option value={LetterType.BLANGKO_CUTI}>Blangko Permintaan Cuti (BKN)</option>
+                <option value={LetterType.SURAT_IZIN_DINAS_TAHUNAN}>Surat Keputusan Cuti (Dinas)</option>
+              </select>
+            </div>
           </div>
           <div className="w-full md:w-auto">
-            <label htmlFor="paper-size" className="block text-sm font-medium text-gray-700 mb-1">Ukuran Kertas</label>
+            <label htmlFor="paper-size" className="block text-xs font-bold text-slate-500 uppercase mb-1 ml-1">Ukuran Kertas</label>
             <select
               id="paper-size"
               value={paperSize}
               onChange={(e) => setPaperSize(e.target.value as PaperSize)}
-              className="w-full mt-1 block pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+              className="w-full mt-1 block pl-3 pr-10 py-2.5 text-sm font-medium border-slate-200 focus:ring-blue-500 focus:border-blue-500 rounded-lg bg-slate-50"
             >
+              <option value="f4">F4 / Folio (Standar)</option>
               <option value="a4">A4 (210 x 297 mm)</option>
-              <option value="f4">F4 (215 x 330 mm)</option>
-              <option value="letter">Letter (216 x 279 mm)</option>
               <option value="legal">Legal (216 x 356 mm)</option>
             </select>
           </div>
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-            <div className="hidden lg:flex items-center text-xs text-gray-400 mr-2">
-                <ZoomIn className="w-3 h-3 mr-1" />
-                Scale: {Math.round(scale * 100)}%
+        
+        <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="hidden xl:flex flex-col items-end text-xs text-slate-400 mr-2">
+                <div className="flex items-center">
+                    <ZoomIn className="w-3 h-3 mr-1" />
+                    Zoom: {Math.round(scale * 100)}%
+                </div>
+                <div className="flex items-center mt-0.5">
+                    <Settings2 className="w-3 h-3 mr-1" />
+                    Mode: Otomatis F4
+                </div>
             </div>
             <button
                 onClick={() => window.print()}
-                className="flex-grow md:flex-none flex items-center justify-center px-6 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+                className="flex-grow md:flex-none flex items-center justify-center px-8 py-3 border border-transparent text-sm font-bold rounded-xl shadow-lg shadow-blue-200 text-white bg-blue-600 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
             >
                 <PrinterIcon className="w-5 h-5 mr-2" />
-                Cetak
+                Cetak Sekarang
             </button>
         </div>
       </div>
 
+      {/* Preview Area */}
       <div 
         ref={previewAreaRef} 
-        className="flex-grow overflow-auto bg-gray-200 p-4 flex justify-center items-start print:bg-transparent print:p-0 print:overflow-visible print:block"
+        className="flex-grow overflow-auto bg-slate-200/50 rounded-2xl border-2 border-dashed border-slate-300 p-8 flex justify-center items-start print:bg-transparent print:p-0 print:overflow-visible print:block print:border-none"
       >
         <div
           style={{
             transform: `scale(${scale})`,
             transformOrigin: 'top center',
-            marginBottom: '32px'
           }}
-          className="print:m-0 print:transform-none print:block"
+          className="print:m-0 print:transform-none print:block transition-transform duration-300 ease-out"
         >
           <DocumentViewer formData={formData} letterType={selectedLetter} paperSize={paperSize} />
         </div>
