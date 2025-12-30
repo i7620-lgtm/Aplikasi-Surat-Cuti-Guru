@@ -10,50 +10,56 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Balinese&family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      /* Aturan Cetak Utama untuk Otomatisasi Browser */
       @page {
-        margin: 0;
-        size: auto;
+        size: 215mm 330mm; /* Dimensi Kertas F4 */
+        margin: 0;         /* Menghilangkan header/footer otomatis browser */
       }
+      
       @media print {
         html, body {
           background: white !important;
           margin: 0 !important;
           padding: 0 !important;
-          height: auto !important;
-          width: 100% !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
+        
         #root, main {
           margin: 0 !important;
           padding: 0 !important;
           display: block !important;
-          width: 100% !important;
         }
+
         .no-print {
           display: none !important;
         }
+
         .paper {
-          margin: 0 auto !important;
+          margin: 0 !important;
           border: none !important;
           border-radius: 0 !important;
           box-shadow: none !important;
           transform: none !important;
           page-break-after: always;
           display: block !important;
-          /* Paksa ukuran sesuai kelasnya saat cetak */
+          width: 215mm !important; /* Paksa lebar F4 saat cetak */
+          height: 330mm !important; /* Paksa tinggi F4 saat cetak */
         }
-        .a4 { width: 210mm !important; min-height: 297mm; }
-        .f4 { width: 215mm !important; min-height: 330mm; }
-        .letter { width: 216mm !important; min-height: 279mm; }
-        .legal { width: 216mm !important; min-height: 356mm; }
       }
+
+      /* Tampilan Pratinjau di Layar */
       .paper {
         background: white;
         margin: 0 auto;
-        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         box-sizing: border-box;
         overflow: hidden;
         flex-shrink: 0;
+        transition: transform 0.2s ease-in-out;
       }
+
+      /* Definisi Dimensi Kertas */
       .f4 { width: 215mm; height: 330mm; min-width: 215mm; }
       .a4 { width: 210mm; height: 297mm; min-width: 210mm; }
       .letter { width: 216mm; height: 279mm; min-width: 216mm; }
@@ -61,6 +67,12 @@
       
       .font-aksara-bali { font-family: 'Noto Sans Balinese', serif; }
       .font-document { font-family: 'Noto Serif', serif; }
+
+      /* Custom Scrollbar for better UI */
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #f1f1f1; }
+      ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
   <script type="importmap">
 {
@@ -76,9 +88,8 @@
 }
 </script>
 </head>
-  <body class="bg-gray-100">
+  <body class="bg-slate-100">
     <div id="root"></div>
-    <!-- Vite akan secara otomatis mencari file ini di root -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
