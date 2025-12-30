@@ -117,7 +117,7 @@ const App: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-800">
+    <div className="min-h-screen bg-gray-50 text-gray-800 print:bg-white">
       <header className="bg-white shadow-md print:hidden">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -152,7 +152,7 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="container mx-auto p-4 sm:p-6 lg:p-8">
+      <main className="container mx-auto p-4 sm:p-6 lg:p-8 print:p-0 print:m-0 print:max-w-none">
         {step === 'form' ? (
           <DataForm 
             formData={formData} 
