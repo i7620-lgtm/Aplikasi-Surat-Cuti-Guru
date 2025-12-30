@@ -28,6 +28,14 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
     </div>
   );
 
+  // Helper untuk menentukan ukuran font nama berdasarkan panjang karakter
+  const getNameFontSize = (name: string) => {
+    const len = (name || '').length;
+    if (len > 35) return 'text-[8pt]';
+    if (len > 25) return 'text-[9pt]';
+    return 'text-[10pt]';
+  };
+
   // Helper untuk mencoret satuan waktu yang tidak dipilih
   const DurationUnit = () => {
     const text = (lamaCuti || '').toLowerCase();
@@ -186,11 +194,13 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                 </div>
                 
                 {/* Area Tanda Tangan Compact */}
-                <div className="flex flex-col justify-center items-center flex-grow p-1">
+                <div className="flex flex-col justify-center items-center flex-grow p-1 overflow-hidden">
                     <div className="mb-10 text-center">Hormat saya,</div>
-                    <div className="text-center">
-                        <p className="font-bold underline">{namaPegawai}</p>
-                        <p>NIP. {nipPegawai}</p>
+                    <div className="text-center w-full px-1">
+                        <p className={`font-bold underline whitespace-nowrap ${getNameFontSize(namaPegawai)}`}>
+                            {namaPegawai}
+                        </p>
+                        <p className="text-[10pt]">NIP. {nipPegawai}</p>
                     </div>
                 </div>
             </div>
@@ -220,17 +230,19 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             <div className="border-r border-black"></div>
             
             {/* Col 3 & 4 Combined: Tanda Tangan (Dikurangi 5px: min-h-[115px] -> min-h-[110px]) */}
-            <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2">
+            <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2 overflow-hidden">
                  {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
                     <p>{jabatanAtasan}</p>
                  </div>
                  
                  {/* Nama/NIP di bawah */}
-                 <div className="flex flex-col items-center text-center w-full">
+                 <div className="flex flex-col items-center text-center w-full px-1">
                      <div className="text-center w-full">
-                        <p className="font-bold underline break-words">{namaAtasan}</p>
-                        <p className="break-words">NIP. {nipAtasan}</p>
+                        <p className={`font-bold underline whitespace-nowrap ${getNameFontSize(namaAtasan)}`}>
+                            {namaAtasan}
+                        </p>
+                        <p className="text-[10pt]">NIP. {nipAtasan}</p>
                      </div>
                  </div>
             </div>
@@ -260,17 +272,19 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             <div className="border-r border-black"></div>
             
             {/* Col 3 & 4 Combined: Tanda Tangan (Dikurangi 5px: min-h-[115px] -> min-h-[110px]) */}
-            <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2">
+            <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2 overflow-hidden">
                  {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
                     <p>{jabatanPejabat}</p>
                  </div>
                  
                  {/* Nama/NIP di bawah */}
-                 <div className="flex flex-col items-center text-center w-full">
+                 <div className="flex flex-col items-center text-center w-full px-1">
                      <div className="text-center w-full">
-                        <p className="font-bold underline break-words">{namaPejabat}</p>
-                        <p className="break-words">NIP. {nipPejabat}</p>
+                        <p className={`font-bold underline whitespace-nowrap ${getNameFontSize(namaPejabat)}`}>
+                            {namaPejabat}
+                        </p>
+                        <p className="text-[10pt]">NIP. {nipPejabat}</p>
                      </div>
                  </div>
             </div>
