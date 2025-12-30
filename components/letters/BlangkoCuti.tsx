@@ -187,7 +187,8 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                 
                 {/* Area Tanda Tangan Compact */}
                 <div className="flex flex-col justify-center items-center flex-grow p-1">
-                    <div className="mb-10 text-center">Hormat saya,</div>
+                    {/* Dikurangi 5px: mb-10 (40px) -> mb-[35px] */}
+                    <div className="mb-[35px] text-center">Hormat saya,</div>
                     <div className="text-center">
                         <p className="font-bold underline">{namaPegawai}</p>
                         <p>NIP. {nipPegawai}</p>
@@ -219,8 +220,9 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             {/* Col 2: Tambah border-r agar garisnya sejajar dengan kolom di atasnya (kolom perubahan) */}
             <div className="border-r border-black"></div>
             
-            {/* Col 3 & 4 Combined: Tanda Tangan. Hapus border-l karena sudah diwakili oleh border-r kolom sebelumnya */}
-            <div className="col-span-2 flex flex-col justify-between min-h-[115px] border-r border-b border-black p-2">
+            {/* Col 3 & 4 Combined: Tanda Tangan. 
+                Dikurangi 5px: min-h-[115px] -> min-h-[110px] */}
+            <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2">
                  {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
                     <p>{jabatanAtasan}</p>
@@ -259,8 +261,9 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             {/* Col 2: Tambah border-r */}
             <div className="border-r border-black"></div>
             
-            {/* Col 3 & 4 Combined: Tanda Tangan. Hapus border-l. */}
-            <div className="col-span-2 flex flex-col justify-between min-h-[115px] border-r border-b border-black p-2">
+            {/* Col 3 & 4 Combined: Tanda Tangan. 
+                Dikurangi 5px: min-h-[115px] -> min-h-[110px] */}
+            <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2">
                  {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
                     <p>{jabatanPejabat}</p>
