@@ -59,7 +59,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
   }, [calculateScale]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden print:overflow-visible print:block">
       <div className="p-4 bg-white rounded-lg shadow-md mb-8 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <div className="w-full md:w-auto">
@@ -107,22 +107,15 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({ formData }) => {
 
       <div 
         ref={previewAreaRef} 
-        className="flex-grow overflow-auto bg-gray-200 p-4 flex justify-center items-start print:bg-transparent print:p-0 print:overflow-visible"
+        className="flex-grow overflow-auto bg-gray-200 p-4 flex justify-center items-start print:bg-transparent print:p-0 print:overflow-visible print:block"
       >
-        {/*
-          NEW LOGIC: A single wrapper that handles scaling.
-          1. The DocumentViewer inside is ALWAYS rendered at its full, true paper size.
-             The browser calculates the layout (text wrapping, etc.) based on this full size.
-          2. The `transform: scale()` is applied AFTER the layout is complete, ensuring a
-             perfectly consistent visual representation that's simply scaled down.
-        */}
         <div
           style={{
             transform: `scale(${scale})`,
             transformOrigin: 'top center',
             marginBottom: '32px'
           }}
-          className="print:m-0 print:transform-none"
+          className="print:m-0 print:transform-none print:block"
         >
           <DocumentViewer formData={formData} letterType={selectedLetter} paperSize={paperSize} />
         </div>
