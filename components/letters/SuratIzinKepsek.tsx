@@ -34,11 +34,14 @@ const SuratIzinKepsek: React.FC<Props> = ({ formData }) => {
   };
 
   const DataRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-    <div className="flex py-0.5">
-      {/* whitespace-nowrap memastikan teks panjang tidak turun baris */}
-      <div className="w-56 shrink-0 whitespace-nowrap">{label}</div>
-      <div className="px-2">:</div>
-      <div className="font-normal">{value || '-'}</div>
+    <div className="flex py-0.5 items-start">
+      {/* 
+        Lebar 53mm disesuaikan agar teks terpanjang "Pangkat / Golongan ruang" 
+        memiliki jarak tepat 1 spasi sebelum titik dua (:) pada font 11pt 
+      */}
+      <div className="w-[53mm] shrink-0 whitespace-nowrap">{label}</div>
+      <div className="w-[4mm] shrink-0 text-center">:</div>
+      <div className="font-normal flex-grow">{value || '-'}</div>
     </div>
   );
 
