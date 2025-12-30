@@ -21,25 +21,48 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
   const isSakit = jenisCuti === LetterType.SURAT_IZIN_DINAS_SAKIT;
   const isMelahirkan = jenisCuti === LetterType.SURAT_IZIN_DINAS_MELAHIRKAN;
 
-  // Render Checkmark if condition is true
+  /**
+   * Logika "Shrink to Fit" - Menghitung lebar visual teks dan menyesuaikan ukuran font.
+   * Mensimulasikan fitur Excel agar teks tetap 1 baris dalam kolom lebar ~80mm (226pt).
+   */
+  const getShrinkToFitClass = (name: string, nip: string) => {
+    const fullNip = `NIP. ${nip || ''}`;
+    
+    // Menghitung bobot visual karakter (Huruf besar/tebal lebih berat)
+    const getVisualWeight = (str: string) => {
+      return str.split('').reduce((acc, char) => {
+        if (/[A-Z]/.test(char)) return acc + 1.15; // Huruf kapital lebih lebar
+        if (/[a-z0-9]/.test(char)) return acc + 0.85; // Karakter standar
+        if (/[\s.,\-/]/.test(char)) return acc + 0.55; // Simbol/spasi lebih sempit
+        return acc + 1;
+      }, 0);
+    };
+
+    const nameWeight = getVisualWeight(name || '');
+    const nipWeight = getVisualWeight(fullNip);
+    const maxWeight = Math.max(nameWeight, nipWeight);
+
+    // Kapasitas kolom aman pada 10pt adalah sekitar 26.5 unit bobot visual
+    const capacityLimit = 26.5; 
+    
+    if (maxWeight <= capacityLimit) return 'text-[10pt]';
+    
+    // Hitung faktor pengecilan
+    const shrinkFactor = capacityLimit / maxWeight;
+    const calculatedSize = 10 * shrinkFactor;
+    
+    // Batas minimum font 6.5pt agar tidak terlalu kecil (tetap terbaca)
+    const finalSize = Math.max(6.5, calculatedSize);
+    
+    return `text-[${finalSize.toFixed(2)}pt]`;
+  };
+
   const Check = ({ cond }: { cond: boolean }) => (
     <div className="flex justify-center items-center h-full text-[12pt]">
       {cond ? '✓' : ''}
     </div>
   );
 
-  // Helper untuk menentukan ukuran font nama pegawai berdasarkan panjang karakter
-  const getPegawaiNameFontSize = (name: string) => {
-    const len = (name || '').length;
-    if (len > 35) return 'text-[8pt]';
-    if (len > 25) return 'text-[9pt]';
-    return 'text-[10pt]';
-  };
-
-  // Ambil kelas ukuran font untuk pegawai satu kali agar bisa dipakai nama & nip
-  const pegawaiFontSizeClass = getPegawaiNameFontSize(namaPegawai);
-
-  // Helper untuk mencoret satuan waktu yang tidak dipilih
   const DurationUnit = () => {
     const text = (lamaCuti || '').toLowerCase();
     const isHari = text.includes('hari');
@@ -81,10 +104,10 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
 
       {/* TANGGAL DAN ALAMAT */}
       <div className="flex flex-col items-end mb-2">
-        <div className="w-full text-right mb-2">
+        <div className="w-full text-right mb-2 text-[10pt]">
           Denpasar, {formatIndonesianDate(tglSurat) || '................................'}
         </div>
-        <div className="w-[50%] text-left">
+        <div className="w-[50%] text-left text-[10pt]">
           <p>Kepada</p>
           <p>Yth. Kepala Dinas Pendidikan Kepemudaan</p>
           <p className="pl-6">dan Olahraga Kota Denpasar</p>
@@ -93,7 +116,6 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
         </div>
       </div>
 
-      {/* JUDUL */}
       <div className="text-center font-bold text-[10pt] mb-2 uppercase">
         FORMULIR PERMINTAAN DAN PEMBERIAN CUTI
       </div>
@@ -102,19 +124,16 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">I. DATA PEGAWAI</div>
         <div className="grid grid-cols-[100px_1fr_100px_1fr]">
-          {/* Row 1 */}
           <div className="px-2 py-[1px] border-r border-b border-black">Nama</div>
           <div className="px-2 py-[1px] border-r border-b border-black">{namaPegawai}</div>
           <div className="px-2 py-[1px] border-r border-b border-black">NIP</div>
           <div className="px-2 py-[1px] border-b border-black">{nipPegawai}</div>
           
-          {/* Row 2 */}
           <div className="px-2 py-[1px] border-r border-b border-black">Jabatan</div>
           <div className="px-2 py-[1px] border-r border-b border-black">{jabatanPegawai}</div>
           <div className="px-2 py-[1px] border-r border-b border-black">Masa Kerja</div>
           <div className="px-2 py-[1px] border-b border-black">{masaKerjaPegawai}</div>
           
-          {/* Row 3 */}
           <div className="px-2 py-[1px] border-r border-black">Unit Kerja</div>
           <div className="px-2 py-[1px] col-span-3">{unitKerjaPegawai}</div>
         </div>
@@ -124,15 +143,10 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">II. JENIS CUTI YANG DIAMBIL**</div>
         <div className="grid grid-cols-[1fr_50px]">
-           {/* Row 1 */}
            <div className="px-2 py-[1px] border-r border-b border-black">1. Cuti Tahunan</div>
            <div className="px-2 py-[1px] border-b border-black text-center"><Check cond={isTahunan} /></div>
-
-           {/* Row 2 */}
            <div className="px-2 py-[1px] border-r border-b border-black">2. Cuti Sakit</div>
            <div className="px-2 py-[1px] border-b border-black text-center"><Check cond={isSakit} /></div>
-
-           {/* Row 3 */}
            <div className="px-2 py-[1px] border-r border-black">3. Cuti Melahirkan</div>
            <div className="px-2 py-[1px] border-black text-center"><Check cond={isMelahirkan} /></div>
         </div>
@@ -162,17 +176,11 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       {/* V. CATATAN CUTI */}
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">V. CATATAN CUTI***</div>
-        {/* Menggunakan grid yang sama dengan Table IV agar kolom terakhir (ruang tulis) sejajar dengan kolom tanggal terakhir */}
         <div className="grid grid-cols-[60px_1.5fr_100px_1fr_40px_1fr]">
-            {/* Row 1: Cuti Tahunan */}
             <div className="px-2 py-[1px] border-r border-b border-black col-span-5">1. Cuti Tahunan</div>
             <div className="px-2 py-[1px] border-b border-black"></div>
-
-            {/* Row 2: Cuti Sakit */}
             <div className="px-2 py-[1px] border-r border-b border-black col-span-5">2. Cuti Sakit</div>
             <div className="px-2 py-[1px] border-b border-black"></div>
-
-            {/* Row 3: Cuti Melahirkan */}
             <div className="px-2 py-[1px] border-r border-black col-span-5">3. Cuti Melahirkan</div>
             <div className="px-2 py-[1px] border-black"></div>
         </div>
@@ -180,30 +188,24 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
 
       {/* VI. ALAMAT */}
       <div className="mb-1 border border-black">
-        {/* Judul Kolom Full Width */}
         <div className="px-2 py-[1px] font-bold border-b border-black">VI. ALAMAT SELAMA MENJALANKAN CUTI</div>
-        
         <div className="flex">
-            {/* Kolom Kiri: Alamat */}
             <div className="w-[60%] border-r border-black px-2 py-[1px] min-h-[50px]">
                 {alamatSelamaCuti}
             </div>
-            
-            {/* Kolom Kanan: Telp & Tanda Tangan */}
-            <div className="w-[40%] flex flex-col">
-                {/* Telp di atas Tanda Tangan */}
+            <div className="w-[40%] flex flex-col overflow-hidden">
                 <div className="px-2 py-[1px] border-b border-black">
                     TELP: {telpPegawai}
                 </div>
-                
-                {/* Area Tanda Tangan Compact (mb-[35px] = mb-10 minus 5px) */}
                 <div className="flex flex-col justify-center items-center flex-grow p-1 overflow-hidden">
                     <div className="mb-[35px] text-center">Hormat saya,</div>
                     <div className="text-center w-full px-1">
-                        <p className={`font-bold underline whitespace-nowrap ${pegawaiFontSizeClass}`}>
+                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPegawai, nipPegawai)}`}>
                             {namaPegawai}
                         </p>
-                        <p className={pegawaiFontSizeClass}>NIP. {nipPegawai}</p>
+                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPegawai, nipPegawai)}`}>
+                            NIP. {nipPegawai}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -214,39 +216,30 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       <div className="mb-1">
         <div className="px-2 py-[1px] font-bold border border-black">VII. PERTIMBANGAN ATASAN LANGSUNG**</div>
         <div className="grid grid-cols-4">
-            {/* ROW 1: Headers */}
             <div className="px-1 py-[1px] border-l border-r border-b border-black text-center text-[10pt]">DISETUJUI (✓)</div>
-            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through">PERUBAHAN****</div>
-            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through">DITANGGUHKAN****</div>
-            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through">TIDAK DISETUJUI****</div>
+            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through text-gray-500">PERUBAHAN****</div>
+            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through text-gray-500">DITANGGUHKAN****</div>
+            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through text-gray-500">TIDAK DISETUJUI****</div>
 
-            {/* ROW 2: Kotak Kosong */}
             <div className="h-[20px] border-l border-r border-b border-black"></div>
             <div className="h-[20px] border-r border-b border-black"></div>
             <div className="h-[20px] border-r border-b border-black"></div>
             <div className="h-[20px] border-r border-b border-black"></div>
             
-            {/* ROW 3: Space & Tanda Tangan */}
-            {/* Col 1 */}
             <div className=""></div> 
-            {/* Col 2: Tambah border-r agar garisnya sejajar dengan kolom di atasnya (kolom perubahan) */}
             <div className="border-r border-black"></div>
-            
-            {/* Col 3 & 4 Combined: Tanda Tangan (Dikurangi 5px: min-h-[115px] -> min-h-[110px]) */}
-            {/* Nama atasan tetap 10pt sesuai instruksi perbaikan */}
             <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2 overflow-hidden">
-                 {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
                     <p>{jabatanAtasan}</p>
                  </div>
-                 
-                 {/* Nama/NIP di bawah */}
                  <div className="flex flex-col items-center text-center w-full px-1">
                      <div className="text-center w-full">
-                        <p className="font-bold underline text-[10pt] break-words">
+                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaAtasan, nipAtasan)}`}>
                             {namaAtasan}
                         </p>
-                        <p className="text-[10pt]">NIP. {nipAtasan}</p>
+                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaAtasan, nipAtasan)}`}>
+                            NIP. {nipAtasan}
+                        </p>
                      </div>
                  </div>
             </div>
@@ -257,39 +250,30 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       <div className="mb-1">
         <div className="px-2 py-[1px] font-bold border border-black">VIII. KEPUTUSAN PEJABAT YANG BERWENANG MEMBERIKAN CUTI**</div>
         <div className="grid grid-cols-4">
-            {/* ROW 1: Headers */}
             <div className="px-1 py-[1px] border-l border-r border-b border-black text-center text-[10pt]">DISETUJUI (✓)</div>
-            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through">PERUBAHAN****</div>
-            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through">DITANGGUHKAN****</div>
-            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through">TIDAK DISETUJUI****</div>
+            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through text-gray-500">PERUBAHAN****</div>
+            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through text-gray-500">DITANGGUHKAN****</div>
+            <div className="px-1 py-[1px] border-r border-b border-black text-center text-[10pt] line-through text-gray-500">TIDAK DISETUJUI****</div>
 
-            {/* ROW 2: Kotak Isi (KOSONG - Hapus centang default) */}
             <div className="h-[20px] border-l border-r border-b border-black"></div>
             <div className="h-[20px] border-r border-b border-black"></div>
             <div className="h-[20px] border-r border-b border-black"></div>
             <div className="h-[20px] border-r border-b border-black"></div>
             
-            {/* ROW 3: Space & Tanda Tangan */}
-            {/* Col 1 */}
             <div className=""></div> 
-            {/* Col 2: Tambah border-r */}
             <div className="border-r border-black"></div>
-            
-            {/* Col 3 & 4 Combined: Tanda Tangan (Dikurangi 5px: min-h-[115px] -> min-h-[110px]) */}
-            {/* Nama pejabat tetap 10pt sesuai instruksi perbaikan */}
             <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2 overflow-hidden">
-                 {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
                     <p>{jabatanPejabat}</p>
                  </div>
-                 
-                 {/* Nama/NIP di bawah */}
                  <div className="flex flex-col items-center text-center w-full px-1">
                      <div className="text-center w-full">
-                        <p className="font-bold underline text-[10pt] break-words">
+                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPejabat, nipPejabat)}`}>
                             {namaPejabat}
                         </p>
-                        <p className="text-[10pt]">NIP. {nipPejabat}</p>
+                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPejabat, nipPejabat)}`}>
+                            NIP. {nipPejabat}
+                        </p>
                      </div>
                  </div>
             </div>
@@ -309,7 +293,6 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
            <div>N-2</div><div className="text-center">:</div><div>Sisa cuti 2 tahun sebelumnya</div>
         </div>
       </div>
-
     </div>
   );
 };
