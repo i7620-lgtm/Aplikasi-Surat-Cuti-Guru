@@ -19,8 +19,6 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ formData, letterType, p
         return <SuratIzinKepsek formData={formData} />;
       case LetterType.BLANGKO_CUTI:
         return <BlangkoCuti formData={formData} />;
-      // Jika mode preview adalah Surat Dinas, gunakan tipe cuti dari formData yang dipilih user
-      // untuk menentukan judul dan konten surat yang tepat.
       case LetterType.SURAT_IZIN_DINAS_TAHUNAN:
       case LetterType.SURAT_IZIN_DINAS_MELAHIRKAN:
       case LetterType.SURAT_IZIN_DINAS_PENTING:
@@ -31,8 +29,10 @@ const DocumentViewer: React.FC<DocumentViewerProps> = ({ formData, letterType, p
     }
   };
 
+  // Kita menghapus class px-12 py-10 dan memindahkannya ke CSS .paper di index.html
+  // agar kontrol margin saat cetak menjadi jauh lebih presisi.
   return (
-    <div id="print-area" className={`paper ${paperSize} bg-white shadow-lg px-12 py-10 text-black font-document`}>
+    <div id="print-area" className={`paper ${paperSize} bg-white text-black font-document`}>
       {renderDocument()}
     </div>
   );
