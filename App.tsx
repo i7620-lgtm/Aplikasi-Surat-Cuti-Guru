@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DataForm from './components/DataForm';
 import PrintPreview from './components/PrintPreview';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -58,7 +58,7 @@ const initialFormData: FormData = {
   tembusan2: 'Yang Bersangkutan',
   tembusan3: 'Arsip',
 
-  // Logos
+  // Logos (Kini dikosongkan di state awal profil karena disimpan global)
   logoDinas: '',
   logoSekolah: '',
 };
@@ -66,25 +66,41 @@ const initialFormData: FormData = {
 const App: React.FC = () => {
   const [step, setStep] = useState<'form' | 'preview'>('form');
   
+  // State Logo Global (Hanya satu untuk seluruh aplikasi)
+  const [globalLogos, setGlobalLogos] = useLocalStorage<{logoDinas: string, logoSekolah: string}>('globalLogos', {
+    logoDinas: '',
+    logoSekolah: ''
+  });
+
   const [profiles, setProfiles] = useLocalStorage<Record<string, FormData>>('profilesData', {});
   const [activeProfileKey, setActiveProfileKey] = useLocalStorage<string | null>('activeProfileKey', null);
-  
-  // State baru untuk menyimpan riwayat cuti. Key-nya adalah NIP Pegawai.
   const [leaveHistory, setLeaveHistory] = useLocalStorage<Record<string, LeaveHistoryEntry[]>>('leaveHistory', {});
 
+  // State form aktif yang menggabungkan data profil + logo global
   const [formData, setFormData] = useState<FormData>(() => {
+    let base = initialFormData;
     if (activeProfileKey && profiles[activeProfileKey]) {
-      return profiles[activeProfileKey];
+      base = profiles[activeProfileKey];
     }
-    return initialFormData;
+    return { ...base, ...globalLogos };
   });
+
+  // Sinkronisasi logo ke state global ketika berubah di form
+  useEffect(() => {
+    if (formData.logoDinas !== globalLogos.logoDinas || formData.logoSekolah !== globalLogos.logoSekolah) {
+        setGlobalLogos({
+            logoDinas: formData.logoDinas,
+            logoSekolah: formData.logoSekolah
+        });
+    }
+  }, [formData.logoDinas, formData.logoSekolah]);
 
   const handleProfileChange = (key: string | null) => {
     setActiveProfileKey(key);
     if (key && profiles[key]) {
-      setFormData(profiles[key]);
+      setFormData({ ...profiles[key], ...globalLogos });
     } else {
-      setFormData(initialFormData);
+      setFormData({ ...initialFormData, ...globalLogos });
     }
   };
 
@@ -94,10 +110,14 @@ const App: React.FC = () => {
       alert('Nama Pegawai tidak boleh kosong untuk menyimpan profil.');
       return;
     }
-    const newProfiles = { ...profiles, [key]: formData };
+
+    // Pisahkan logo dari data profil sebelum disimpan ke localStorage profil
+    const { logoDinas, logoSekolah, ...profileDataWithoutLogos } = formData;
+    
+    const newProfiles = { ...profiles, [key]: profileDataWithoutLogos as FormData };
     setProfiles(newProfiles);
     setActiveProfileKey(key);
-    alert(`Profil untuk "${key}" berhasil disimpan!`);
+    alert(`Profil untuk "${key}" berhasil disimpan! (Logo disimpan secara global untuk seluruh profil)`);
   };
 
   const handleDeleteProfile = () => {
@@ -110,11 +130,10 @@ const App: React.FC = () => {
       delete newProfiles[activeProfileKey];
       setProfiles(newProfiles);
       setActiveProfileKey(null);
-      setFormData(initialFormData);
+      setFormData({ ...initialFormData, ...globalLogos });
       alert(`Profil "${activeProfileKey}" telah dihapus.`);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 print:bg-white">
