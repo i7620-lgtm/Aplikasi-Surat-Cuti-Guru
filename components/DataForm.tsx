@@ -21,7 +21,6 @@ interface DataFormProps {
   setLeaveHistory: React.Dispatch<React.SetStateAction<Record<string, LeaveHistoryEntry[]>>>;
 }
 
-// Fungsi pembantu untuk mengecilkan gambar (untuk menghemat localStorage)
 const resizeImage = (base64Str: string, maxWidth = 400, maxHeight = 400): Promise<string> => {
   return new Promise((resolve) => {
     if (!base64Str) return resolve('');
@@ -31,7 +30,6 @@ const resizeImage = (base64Str: string, maxWidth = 400, maxHeight = 400): Promis
       const canvas = document.createElement('canvas');
       let width = img.width;
       let height = img.height;
-
       if (width > height) {
         if (width > maxWidth) {
           height *= maxWidth / width;
@@ -43,7 +41,6 @@ const resizeImage = (base64Str: string, maxWidth = 400, maxHeight = 400): Promis
           height = maxHeight;
         }
       }
-
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
@@ -204,11 +201,10 @@ const DataForm: React.FC<DataFormProps> = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  // EKSPOR: Menggunakan 2 Sheet terpisah
   const handleExport = () => {
       const wb = XLSX.utils.book_new();
 
-      // Sheet 1: Data Pegawai (Tanpa Logo)
+      // Sheet 1: Data Pegawai
       const pegawaiData = Object.values(profiles).map(profile => {
           const { logoDinas, logoSekolah, ...rest } = profile as any;
           return rest;
@@ -219,28 +215,39 @@ const DataForm: React.FC<DataFormProps> = ({
       // Sheet 2: Logo Global
       const CHUNK_SIZE = 30000;
       const logoData: any[] = [];
-      
       const processLogo = (label: string, data: string) => {
           if (!data) return;
           for (let i = 0, part = 1; i < data.length; i += CHUNK_SIZE, part++) {
-              logoData.push({
-                  Tipe: label,
-                  Urutan: part,
-                  Konten: data.substring(i, i + CHUNK_SIZE)
-              });
+              logoData.push({ Tipe: label, Urutan: part, Konten: data.substring(i, i + CHUNK_SIZE) });
           }
       };
-
       processLogo('LogoDinas', formData.logoDinas);
       processLogo('LogoSekolah', formData.logoSekolah);
-
       const wsLogos = XLSX.utils.json_to_sheet(logoData);
       XLSX.utils.book_append_sheet(wb, wsLogos, 'Logo Aplikasi');
 
-      XLSX.writeFile(wb, 'data_cuti_guru_denpasar.xlsx');
+      // Sheet Per Pegawai: Riwayat Cuti
+      Object.entries(profiles).forEach(([name, profile]) => {
+          const nip = profile.nipPegawai?.trim();
+          if (nip && leaveHistory[nip] && leaveHistory[nip].length > 0) {
+              // Nama Sheet maksimal 31 karakter
+              const sheetName = `RIW_${name.substring(0, 25)}`.trim();
+              const historyData = leaveHistory[nip].map(entry => ({
+                  'Tgl Mulai': entry.tglMulai,
+                  'Tgl Selesai': entry.tglSelesai,
+                  'Lama (Hari)': entry.lamaCuti,
+                  'Jenis': entry.jenisCuti,
+                  'Alasan': entry.alasanCuti,
+                  'NIP_OWNER': nip // ID unik untuk relasi saat impor
+              }));
+              const wsHistory = XLSX.utils.json_to_sheet(historyData);
+              XLSX.utils.book_append_sheet(wb, wsHistory, sheetName);
+          }
+      });
+
+      XLSX.writeFile(wb, 'data_lengkap_cuti_guru.xlsx');
   };
   
-  // IMPOR: Memproses 2 Sheet
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -260,15 +267,39 @@ const DataForm: React.FC<DataFormProps> = ({
             }
 
             // 2. Proses Pegawai
-            const pegawaiJson = XLSX.utils.sheet_to_json(workbook.Sheets['Data Pegawai']) as any[];
             const newProfiles = { ...profiles };
-            pegawaiJson.forEach((row) => {
-                if (row.namaPegawai) {
-                    newProfiles[row.namaPegawai.trim()] = row;
+            if (workbook.SheetNames.includes('Data Pegawai')) {
+                const pegawaiJson = XLSX.utils.sheet_to_json(workbook.Sheets['Data Pegawai']) as any[];
+                pegawaiJson.forEach((row) => {
+                    if (row.namaPegawai) newProfiles[row.namaPegawai.trim()] = row;
+                });
+            }
+            
+            // 3. Proses Riwayat Cuti (Mencari Sheet berawalan RIW_)
+            const newHistory = { ...leaveHistory };
+            workbook.SheetNames.forEach(sheetName => {
+                if (sheetName.startsWith('RIW_')) {
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]) as any[];
+                    if (rows.length > 0) {
+                        const nip = rows[0].NIP_OWNER;
+                        if (nip) {
+                            newHistory[nip] = rows.map(r => ({
+                                id: Date.now().toString() + Math.random(),
+                                tglMulai: r['Tgl Mulai'],
+                                tglSelesai: r['Tgl Selesai'],
+                                lamaCuti: r['Lama (Hari)'],
+                                jenisCuti: r['Jenis'],
+                                alasanCuti: r['Alasan'],
+                                timestamp: Date.now()
+                            }));
+                        }
+                    }
                 }
             });
             
             setProfiles(newProfiles);
+            setLeaveHistory(newHistory);
+            
             if (importedDinas || importedSekolah) {
                 setFormData(prev => ({ 
                     ...prev, 
@@ -276,7 +307,7 @@ const DataForm: React.FC<DataFormProps> = ({
                     logoSekolah: importedSekolah || prev.logoSekolah 
                 }));
             }
-            alert('Impor berhasil. Profil pegawai telah diperbarui.');
+            alert('Impor berhasil. Profil dan riwayat cuti telah diperbarui.');
           } catch (error) {
               console.error("Gagal mengimpor file:", error);
               alert("Gagal mengimpor file. Pastikan format file benar.");
@@ -289,50 +320,36 @@ const DataForm: React.FC<DataFormProps> = ({
   useEffect(() => {
     setFormData(prev => {
       let updates: Partial<FormData> = {};
-      
       const workingDays = calculateWorkingDays(prev.tglMulai, prev.tglSelesai);
       const jatah = parseInt(prev.jatahCutiTahunan, 10) || 0;
-      
       const nip = prev.nipPegawai?.trim();
       const myHistory = nip && leaveHistory[nip] ? leaveHistory[nip] : [];
       const currentYear = new Date().getFullYear();
-      
       const usedInHistory = myHistory
         .filter(entry => {
           const entryYear = new Date(entry.tglMulai).getFullYear();
           return entry.jenisCuti === LetterType.SURAT_IZIN_DINAS_TAHUNAN && entryYear === currentYear;
         })
         .reduce((sum, entry) => sum + entry.lamaCuti, 0);
-
       const sisa = Math.max(0, jatah - usedInHistory); 
-
       const newLamaCuti = workingDays > 0 ? `${workingDays} hari kerja` : '';
       const newSisaCutiN = String(sisa);
-
       if (prev.lamaCuti !== newLamaCuti) updates.lamaCuti = newLamaCuti;
       if (prev.sisaCutiN !== newSisaCutiN) updates.sisaCutiN = newSisaCutiN;
-
       let balineseDate = '';
       if (prev.tglSurat && prev.tglSurat.includes('-')) {
         const parts = prev.tglSurat.split('-').map(Number);
         if (parts.length === 3 && !parts.some(isNaN)) {
-          try {
-            const testDate = new Date(parts[0], parts[1] - 1, parts[2]);
-            if (!isNaN(testDate.getTime())) {
-                balineseDate = calculateBalineseDate(testDate);
-            }
-          } catch (e) {}
+          const testDate = new Date(parts[0], parts[1] - 1, parts[2]);
+          if (!isNaN(testDate.getTime())) balineseDate = calculateBalineseDate(testDate);
         }
       }
       if (prev.tglSuratBali !== balineseDate) updates.tglSuratBali = balineseDate;
-
       const unitKerja = prev.unitKerjaPegawai || '';
       const newJabatanAtasan = unitKerja ? `Kepala ${unitKerja}` : 'Kepala Sekolah';
       const newTembusan1 = unitKerja ? `Kepala ${unitKerja}` : '';
-
       if (prev.jabatanAtasan !== newJabatanAtasan) updates.jabatanAtasan = newJabatanAtasan;
       if (prev.tembusan1 !== newTembusan1) updates.tembusan1 = newTembusan1;
-
       return { ...prev, ...updates };
     });
   }, [formData.tglMulai, formData.tglSelesai, formData.jatahCutiTahunan, formData.tglSurat, formData.unitKerjaPegawai, formData.nipPegawai, leaveHistory]); 
@@ -350,19 +367,19 @@ const DataForm: React.FC<DataFormProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-6">Manajemen Profil</h2>
+      <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-600">
+        <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-6">Manajemen Profil Pegawai</h2>
         <div className="space-y-4">
           <select
             value={activeProfileKey ?? ''}
             onChange={(e) => onProfileChange(e.target.value || null)}
-            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2"
           >
             <option value="">-- Buat Profil Baru --</option>
             {Object.keys(profiles).sort().map(key => <option key={key} value={key}>{key}</option>)}
           </select>
           <div className="flex flex-wrap gap-2">
-            <button onClick={onSaveProfile} className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition">
+            <button onClick={onSaveProfile} className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow transition">
               <Save className="w-4 h-4 mr-2"/> Simpan Profil
             </button>
             <button onClick={onDeleteProfile} disabled={!activeProfileKey} className="flex-1 flex items-center justify-center px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-400">
@@ -370,15 +387,15 @@ const DataForm: React.FC<DataFormProps> = ({
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-             <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-               <Upload className="w-4 h-4 mr-2" /> Impor Excel
+             <button onClick={() => fileInputRef.current?.click()} className="flex-1 flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition">
+               <Upload className="w-4 h-4 mr-2" /> Impor Data Lengkap
              </button>
-             <button onClick={handleExport} disabled={Object.keys(profiles).length === 0} className="flex-1 flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400">
-               <Download className="w-4 h-4 mr-2" /> Ekspor Excel
+             <button onClick={handleExport} disabled={Object.keys(profiles).length === 0} className="flex-1 flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 transition">
+               <Download className="w-4 h-4 mr-2" /> Ekspor Data (Multi-Sheet)
              </button>
           </div>
           <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" className="hidden" />
-          <p className="text-[10px] text-gray-400 italic">*Logo kini disimpan secara otomatis untuk seluruh profil.</p>
+          <p className="text-[10px] text-gray-400 italic">*Ekspor mencakup data pegawai, logo global, dan riwayat per pegawai.</p>
         </div>
       </div>
 
@@ -400,36 +417,25 @@ const DataForm: React.FC<DataFormProps> = ({
         <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-6">Data Pegawai (Pemohon)</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputField label="Nama Lengkap" id="namaPegawai" value={formData.namaPegawai} onChange={handleChange} />
-          <InputField label="NIP" id="nipPegawai" value={formData.nipPegawai} onChange={handleChange} placeholder="Digunakan sebagai ID riwayat cuti" />
+          <InputField label="NIP" id="nipPegawai" value={formData.nipPegawai} onChange={handleChange} placeholder="Relasi untuk riwayat cuti" />
           <InputField label="Pangkat / Golongan ruang" id="pangkatGolonganPegawai" value={formData.pangkatGolonganPegawai} onChange={handleChange} />
           <InputField label="Jabatan" id="jabatanPegawai" value={formData.jabatanPegawai} onChange={handleChange} />
-          <InputField label="Unit Kerja" id="unitKerjaPegawai" value={formData.unitKerjaPegawai} onChange={handleChange} placeholder="Contoh: SD Negeri 2 Padangsambian" />
+          <InputField label="Unit Kerja" id="unitKerjaPegawai" value={formData.unitKerjaPegawai} onChange={handleChange} />
           <InputField label="Satuan Organisasi" id="satuanOrganisasi" value={formData.satuanOrganisasi} onChange={handleChange} />
           <InputField label="Status Pegawai" id="statusPegawai" value={formData.statusPegawai} onChange={handleChange} />
           <InputField label="Tanggal Mulai Kerja" id="tglMulaiKerja" value={formData.tglMulaiKerja} onChange={handleChange} type="date" required={false} />
-          <InputField label="Masa Kerja" id="masaKerjaPegawai" value={formData.masaKerjaPegawai} onChange={handleChange} required={false} helperText="Dihitung otomatis, tapi bisa diubah manual jika perlu." />
+          <InputField label="Masa Kerja" id="masaKerjaPegawai" value={formData.masaKerjaPegawai} onChange={handleChange} required={false} readOnly />
           <InputField label="Nomor Telepon" id="telpPegawai" value={formData.telpPegawai} onChange={handleChange} />
-          <InputField label="Alamat Selama Cuti" id="alamatSelamaCuti" value={formData.alamatSelamaCuti} onChange={handleChange} />
+          <InputField label="Alamat Selama Cuti" id="alamatSelamaCuti" value={formData.alamatSelamaCuti} onChange={handleChange} type="textarea" />
         </div>
       </div>
 
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="flex justify-between items-center border-b pb-3 mb-6">
-           <h2 className="text-xl font-bold text-gray-800">Detail Permohonan Cuti</h2>
-        </div>
-
+        <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-6">Detail Permohonan Cuti</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="md:col-span-2">
-            <label htmlFor="jenisCuti" className="block text-sm font-medium text-gray-700 mb-1">
-              Jenis Cuti
-            </label>
-            <select
-              id="jenisCuti"
-              name="jenisCuti"
-              value={formData.jenisCuti}
-              onChange={(e) => setFormData(prev => ({ ...prev, jenisCuti: e.target.value as LetterType }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            >
+            <label htmlFor="jenisCuti" className="block text-sm font-medium text-gray-700 mb-1">Jenis Cuti</label>
+            <select id="jenisCuti" name="jenisCuti" value={formData.jenisCuti} onChange={(e) => setFormData(prev => ({ ...prev, jenisCuti: e.target.value as LetterType }))} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
               <option value={LetterType.SURAT_IZIN_DINAS_TAHUNAN}>Cuti Tahunan</option>
               <option value={LetterType.SURAT_IZIN_DINAS_SAKIT}>Cuti Sakit</option>
               <option value={LetterType.SURAT_IZIN_DINAS_MELAHIRKAN}>Cuti Melahirkan</option>
@@ -441,13 +447,12 @@ const DataForm: React.FC<DataFormProps> = ({
             <InputField label="Alasan Cuti" id="alasanCuti" value={formData.alasanCuti} onChange={handleChange} type="textarea" />
           </div>
         </div>
-        
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <InputField label="Jatah Cuti Tahunan" id="jatahCutiTahunan" value={formData.jatahCutiTahunan} onChange={handleChange} type="number" />
-          <InputField label="Lama Cuti (Saat Ini)" id="lamaCuti" value={formData.lamaCuti} onChange={handleChange} readOnly={true} />
-          <InputField label="Sisa Cuti (N)" id="sisaCutiN" value={formData.sisaCutiN} onChange={handleChange} readOnly={true} helperText="Dihitung dari Jatah - Riwayat" />
-          <InputField label="Sisa Cuti (N-1)" id="sisaCutiN_1" value={formData.sisaCutiN_1} onChange={handleChange} type="number" required={false} helperText="Maksimal 6 hari" />
-          <InputField label="Sisa Cuti (N-2)" id="sisaCutiN_2" value={formData.sisaCutiN_2} onChange={handleChange} type="number" required={false} helperText="Maksimal 6 hari" />
+          <InputField label="Lama Cuti (Saat Ini)" id="lamaCuti" value={formData.lamaCuti} onChange={handleChange} readOnly />
+          <InputField label="Sisa Cuti (N)" id="sisaCutiN" value={formData.sisaCutiN} onChange={handleChange} readOnly />
+          <InputField label="Sisa Cuti (N-1)" id="sisaCutiN_1" value={formData.sisaCutiN_1} onChange={handleChange} type="number" required={false} />
+          <InputField label="Sisa Cuti (N-2)" id="sisaCutiN_2" value={formData.sisaCutiN_2} onChange={handleChange} type="number" required={false} />
           <div className="bg-green-50 p-3 rounded-md border border-green-200 flex items-center">
              <div className="flex-grow">
                 <p className="text-xs font-bold text-green-800 uppercase">Total Hak Cuti Tersedia</p>
@@ -463,8 +468,8 @@ const DataForm: React.FC<DataFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputField label="Nama Kepala Sekolah" id="namaAtasan" value={formData.namaAtasan} onChange={handleChange} />
           <InputField label="NIP Kepala Sekolah" id="nipAtasan" value={formData.nipAtasan} onChange={handleChange} />
-          <InputField label="Pangkat / Golongan ruang Kepala Sekolah" id="pangkatGolonganAtasan" value={formData.pangkatGolonganAtasan} onChange={handleChange} />
-          <InputField label="Jabatan Penandatangan" id="jabatanAtasan" value={formData.jabatanAtasan} onChange={handleChange} readOnly={true} helperText="Otomatis mengikuti unit kerja." />
+          <InputField label="Pangkat / Golongan Kepala Sekolah" id="pangkatGolonganAtasan" value={formData.pangkatGolonganAtasan} onChange={handleChange} />
+          <InputField label="Jabatan Atasan" id="jabatanAtasan" value={formData.jabatanAtasan} onChange={handleChange} readOnly />
           <div className="md:col-span-2 border-t pt-4 mt-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField label="Nama Pejabat Berwenang" id="namaPejabat" value={formData.namaPejabat} onChange={handleChange} />
             <InputField label="NIP Pejabat Berwenang" id="nipPejabat" value={formData.nipPejabat} onChange={handleChange} />
@@ -483,18 +488,14 @@ const DataForm: React.FC<DataFormProps> = ({
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Tanggal Surat</label>
             <div className="grid grid-cols-2 gap-4">
-              <input type="date" name="tglSurat" value={formData.tglSurat} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm" />
-              <input type="text" value={formData.tglSuratBali} readOnly className="w-full bg-gray-100 border-gray-300 rounded-md shadow-sm" />
+              <input type="date" name="tglSurat" value={formData.tglSurat} onChange={handleChange} className="w-full border-gray-300 rounded-md shadow-sm p-2" />
+              <input type="text" value={formData.tglSuratBali} readOnly className="w-full bg-gray-100 border-gray-300 rounded-md shadow-sm p-2" />
             </div>
           </div>
         </div>
       </div>
       
-      <Riwayat 
-         formData={formData} 
-         leaveHistory={leaveHistory} 
-         setLeaveHistory={setLeaveHistory} 
-      />
+      <Riwayat formData={formData} leaveHistory={leaveHistory} setLeaveHistory={setLeaveHistory} />
     </div>
   );
 };
