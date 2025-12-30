@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import { transliterate, expandAndCapitalizeSchoolName } from '../../utils/TransliterationUtil';
 import { logoDenpasarBase64 } from '../../assets/logo-denpasar';
@@ -30,12 +31,12 @@ const LetterheadSekolah: React.FC<Props> = ({ formData }) => {
       <div className="flex justify-between items-center gap-4">
         <img src={logoDinas || logoDenpasarBase64} alt="Logo Dinas" className="w-[90px] h-auto object-contain shrink-0" />
         
-        <div className="flex-grow">
-          <p className="font-aksara-bali text-[9.5pt] leading-tight mb-0.5">{transliterated.pemda}</p>
-          <p className="font-bold text-[10.5pt] leading-tight mb-1">{pemdaText}</p>
+        <div className="flex-grow overflow-visible">
+          <p className="font-aksara-bali text-[9.5pt] leading-tight mb-0.5 whitespace-nowrap">{transliterated.pemda}</p>
+          <p className="font-bold text-[10.5pt] leading-tight mb-1 whitespace-nowrap">{pemdaText}</p>
           
-          <p className="font-aksara-bali text-[9.5pt] leading-tight mb-0.5">{transliterated.dinas}</p>
-          <p className="font-bold text-[10.5pt] leading-tight mb-1">{dinasText}</p>
+          <p className="font-aksara-bali text-[9.5pt] leading-tight mb-0.5 whitespace-nowrap">{transliterated.dinas}</p>
+          <p className="font-bold text-[10.5pt] leading-tight mb-1 whitespace-nowrap">{dinasText}</p>
           
           <p className="font-aksara-bali text-[12pt] leading-tight mb-0.5">{transliterated.sekolah}</p>
           <p className="font-bold text-[14pt] leading-tight mb-1">{sekolahText}</p>
