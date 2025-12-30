@@ -34,9 +34,9 @@ const SuratIzinKepsek: React.FC<Props> = ({ formData }) => {
   };
 
   const DataRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-    <div className="flex">
-      {/* Diperlebar dari w-48 ke w-56 agar label panjang muat 1 baris */}
-      <div className="w-56 shrink-0">{label}</div>
+    <div className="flex py-0.5">
+      {/* whitespace-nowrap memastikan teks panjang tidak turun baris */}
+      <div className="w-56 shrink-0 whitespace-nowrap">{label}</div>
       <div className="px-2">:</div>
       <div className="font-normal">{value || '-'}</div>
     </div>
@@ -50,7 +50,7 @@ const SuratIzinKepsek: React.FC<Props> = ({ formData }) => {
       <div className="text-center text-[11pt] mb-10">No. {nomorSuratSekolah || '.../.../.../...'}</div>
 
       <p className="mb-4">Yang bertanda tangan dibawah ini :</p>
-      <div className="mb-6 space-y-1 ml-4">
+      <div className="mb-6 space-y-0.5 ml-4">
         <DataRow label="Nama" value={namaAtasan} />
         <DataRow label="NIP" value={nipAtasan} />
         <DataRow label="Pangkat / Golongan ruang" value={pangkatGolonganAtasan} />
@@ -59,10 +59,10 @@ const SuratIzinKepsek: React.FC<Props> = ({ formData }) => {
       </div>
 
       <p className="mb-4">Memberikan izin {getJenisCutiText()} kepada :</p>
-      <div className="mb-8 space-y-1 ml-4">
+      <div className="mb-8 space-y-0.5 ml-4">
         <DataRow label="Nama" value={namaPegawai} />
         <DataRow label="NIP" value={nipPegawai} />
-        <DataRow label="Pangkat / Golongan" value={pangkatGolonganPegawai} />
+        <DataRow label="Pangkat / Golongan ruang" value={pangkatGolonganPegawai} />
         <DataRow label="Jabatan" value={jabatanPegawai} />
         <DataRow label="Tempat Tugas" value={unitKerjaPegawai} />
         <DataRow label="Satuan Organisasi" value={satuanOrganisasi} />
