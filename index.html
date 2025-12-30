@@ -12,27 +12,39 @@
     <style>
       @page {
         margin: 0;
+        size: auto;
       }
       @media print {
-        body {
-          margin: 0;
+        html, body {
           background: white !important;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        }
-        .paper {
           margin: 0 !important;
-          border: none !important;
-          border-radius: 0 !important;
-          box-shadow: none !important;
-          width: 100% !important;
+          padding: 0 !important;
           height: auto !important;
-          page-break-after: always;
-          transform: none !important;
+          width: 100% !important;
+        }
+        #root, main {
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+          width: 100% !important;
         }
         .no-print {
           display: none !important;
         }
+        .paper {
+          margin: 0 auto !important;
+          border: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          transform: none !important;
+          page-break-after: always;
+          display: block !important;
+          /* Paksa ukuran sesuai kelasnya saat cetak */
+        }
+        .a4 { width: 210mm !important; min-height: 297mm; }
+        .f4 { width: 215mm !important; min-height: 330mm; }
+        .letter { width: 216mm !important; min-height: 279mm; }
+        .legal { width: 216mm !important; min-height: 356mm; }
       }
       .paper {
         background: white;
@@ -53,13 +65,13 @@
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
     "vite": "https://esm.sh/vite@^7.3.0",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5"
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
