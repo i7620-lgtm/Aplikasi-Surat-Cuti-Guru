@@ -10,41 +10,68 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Balinese&family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* Aturan Cetak Utama untuk Otomatisasi Browser */
+      /* INSTRUKSI CETAK TINGKAT TINGGI */
+      /* 215mm x 330mm adalah standar F4 / Folio / 8.5 x 13 inci */
       @page {
-        size: 215mm 330mm; /* Dimensi Kertas F4 */
-        margin: 0;         /* Menghilangkan header/footer otomatis browser */
+        size: 215mm 330mm !important;
+        margin: 0 !important;
       }
       
       @media print {
+        /* Reset paksa untuk elemen global */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          box-sizing: border-box !important;
+        }
+
         html, body {
           background: white !important;
           margin: 0 !important;
           padding: 0 !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          width: 215mm !important;
+          height: 330mm !important;
+          overflow: visible !important;
         }
         
         #root, main {
           margin: 0 !important;
           padding: 0 !important;
           display: block !important;
+          width: 215mm !important;
         }
 
         .no-print {
           display: none !important;
         }
 
+        /* PAKSA RESET SKALA PRATINJAU */
+        .preview-scale-container {
+          transform: none !important;
+          transform-origin: unset !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          display: block !important;
+          width: 215mm !important;
+          height: auto !important;
+          background: none !important;
+        }
+
+        /* DEFINISI KERTAS FISIK F4 */
         .paper {
           margin: 0 !important;
           border: none !important;
           border-radius: 0 !important;
           box-shadow: none !important;
           transform: none !important;
-          page-break-after: always;
           display: block !important;
-          width: 215mm !important; /* Paksa lebar F4 saat cetak */
-          height: 330mm !important; /* Paksa tinggi F4 saat cetak */
+          width: 215mm !important; 
+          height: 330mm !important;
+          position: relative !important;
+          page-break-after: always;
+          page-break-inside: avoid;
+          /* Padding standar surat agar tidak terpotong margin fisik printer */
+          padding: 15mm 20mm !important; 
         }
       }
 
@@ -57,9 +84,10 @@
         overflow: hidden;
         flex-shrink: 0;
         transition: transform 0.2s ease-in-out;
+        padding: 1.5cm 2cm;
       }
 
-      /* Definisi Dimensi Kertas */
+      /* Dimensi visual pratinjau */
       .f4 { width: 215mm; height: 330mm; min-width: 215mm; }
       .a4 { width: 210mm; height: 297mm; min-width: 210mm; }
       .letter { width: 216mm; height: 279mm; min-width: 216mm; }
@@ -68,11 +96,9 @@
       .font-aksara-bali { font-family: 'Noto Sans Balinese', serif; }
       .font-document { font-family: 'Noto Serif', serif; }
 
-      /* Custom Scrollbar for better UI */
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: #f1f1f1; }
       ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-      ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
   <script type="importmap">
 {
