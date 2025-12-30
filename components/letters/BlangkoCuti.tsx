@@ -23,17 +23,18 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
 
   /**
    * Logika "Shrink to Fit" - Menghitung lebar visual teks dan menyesuaikan ukuran font.
-   * Mensimulasikan fitur Excel agar teks tetap 1 baris dalam kolom lebar ~80mm (226pt).
+   * capacityLimit disesuaikan berdasarkan lebar kolom:
+   * - Untuk kolom 40% (Pegawai): ~32 units
+   * - Untuk kolom 50% (Atasan/Pejabat): ~40 units
    */
-  const getShrinkToFitClass = (name: string, nip: string) => {
+  const getShrinkToFitClass = (name: string, nip: string, capacityLimit: number) => {
     const fullNip = `NIP. ${nip || ''}`;
     
-    // Menghitung bobot visual karakter (Huruf besar/tebal lebih berat)
     const getVisualWeight = (str: string) => {
       return str.split('').reduce((acc, char) => {
-        if (/[A-Z]/.test(char)) return acc + 1.15; // Huruf kapital lebih lebar
-        if (/[a-z0-9]/.test(char)) return acc + 0.85; // Karakter standar
-        if (/[\s.,\-/]/.test(char)) return acc + 0.55; // Simbol/spasi lebih sempit
+        if (/[A-Z]/.test(char)) return acc + 1.15;
+        if (/[a-z0-9]/.test(char)) return acc + 0.85;
+        if (/[\s.,\-/]/.test(char)) return acc + 0.55;
         return acc + 1;
       }, 0);
     };
@@ -42,16 +43,11 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
     const nipWeight = getVisualWeight(fullNip);
     const maxWeight = Math.max(nameWeight, nipWeight);
 
-    // Kapasitas kolom aman pada 10pt adalah sekitar 26.5 unit bobot visual
-    const capacityLimit = 26.5; 
-    
     if (maxWeight <= capacityLimit) return 'text-[10pt]';
     
-    // Hitung faktor pengecilan
     const shrinkFactor = capacityLimit / maxWeight;
     const calculatedSize = 10 * shrinkFactor;
-    
-    // Batas minimum font 6.5pt agar tidak terlalu kecil (tetap terbaca)
+    // Minimal font size 6.5pt agar tetap bisa dibaca
     const finalSize = Math.max(6.5, calculatedSize);
     
     return `text-[${finalSize.toFixed(2)}pt]`;
@@ -71,7 +67,8 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
     const hasUnit = isHari || isBulan || isTahun;
 
     const getStyle = (isMatch: boolean) => ({
-      textDecoration: hasUnit && !isMatch ? 'line-through' : 'none'
+      textDecoration: hasUnit && !isMatch ? 'line-through' : 'none',
+      color: hasUnit && !isMatch ? '#9ca3af' : 'inherit'
     });
 
     return (
@@ -199,11 +196,11 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                 </div>
                 <div className="flex flex-col justify-center items-center flex-grow p-1 overflow-hidden">
                     <div className="mb-[35px] text-center">Hormat saya,</div>
-                    <div className="text-center w-full px-1">
-                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPegawai, nipPegawai)}`}>
+                    <div className="text-center w-full px-[1ch]">
+                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPegawai, nipPegawai, 32)}`}>
                             {namaPegawai}
                         </p>
-                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPegawai, nipPegawai)}`}>
+                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPegawai, nipPegawai, 32)}`}>
                             NIP. {nipPegawai}
                         </p>
                     </div>
@@ -232,12 +229,12 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                  <div className="w-full text-center">
                     <p>{jabatanAtasan}</p>
                  </div>
-                 <div className="flex flex-col items-center text-center w-full px-1">
+                 <div className="flex flex-col items-center text-center w-full px-[1ch]">
                      <div className="text-center w-full">
-                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaAtasan, nipAtasan)}`}>
+                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaAtasan, nipAtasan, 40)}`}>
                             {namaAtasan}
                         </p>
-                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaAtasan, nipAtasan)}`}>
+                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaAtasan, nipAtasan, 40)}`}>
                             NIP. {nipAtasan}
                         </p>
                      </div>
@@ -266,12 +263,12 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                  <div className="w-full text-center">
                     <p>{jabatanPejabat}</p>
                  </div>
-                 <div className="flex flex-col items-center text-center w-full px-1">
+                 <div className="flex flex-col items-center text-center w-full px-[1ch]">
                      <div className="text-center w-full">
-                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPejabat, nipPejabat)}`}>
+                        <p className={`font-bold underline whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPejabat, nipPejabat, 40)}`}>
                             {namaPejabat}
                         </p>
-                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPejabat, nipPejabat)}`}>
+                        <p className={`whitespace-nowrap inline-block max-w-full leading-tight ${getShrinkToFitClass(namaPejabat, nipPejabat, 40)}`}>
                             NIP. {nipPejabat}
                         </p>
                      </div>
