@@ -15,7 +15,7 @@ const initialFormData: FormData = {
   jabatanPegawai: '',
   statusPegawai: 'Guru PNS',
   unitKerjaPegawai: '',
-  satuanOrganisasi: 'Dinas Pendidikan Kepemudaan Dan Olahraga Kota Denpasar',
+  satuanOrganisasi: 'Dinas Pendidikan Kepemudaan dan Olahraga Kota Denpasar',
   tglMulaiKerja: '',
   masaKerjaPegawai: '',
   alamatSelamaCuti: '',
