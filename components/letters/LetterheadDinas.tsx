@@ -28,7 +28,7 @@ const LetterheadDinas: React.FC<Props> = ({ logoDinas }) => {
           <img 
             src={logoDinas || logoDenpasarBase64} 
             alt="Logo Kota Denpasar" 
-            className="w-[100px] h-auto object-contain" 
+            className="w-[93px] h-auto object-contain" 
           />
         </div>
 
