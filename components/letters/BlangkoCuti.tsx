@@ -41,7 +41,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
     });
 
     return (
-      <span>
+      <span className="whitespace-nowrap">
         (<span style={getStyle(isHari)}>hari</span>/
         <span style={getStyle(isBulan)}>bulan</span>/
         <span style={getStyle(isTahun)}>tahun</span>)*
@@ -136,9 +136,9 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       {/* IV. LAMANYA CUTI */}
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">IV. LAMANYA CUTI</div>
-        <div className="grid grid-cols-[100px_1fr_120px_1fr_40px_1fr]">
+        <div className="grid grid-cols-[60px_1.5fr_100px_1fr_40px_1fr]">
             <div className="px-2 py-[1px] border-r border-black">Selama</div>
-            <div className="px-2 py-[1px] border-r border-black">
+            <div className="px-2 py-[1px] border-r border-black whitespace-nowrap">
                 {getDurationNumber()} <DurationUnit />
             </div>
             <div className="px-2 py-[1px] border-r border-black">mulai tanggal</div>
@@ -152,7 +152,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">V. CATATAN CUTI***</div>
         {/* Menggunakan grid yang sama dengan Table IV agar kolom terakhir (ruang tulis) sejajar dengan kolom tanggal terakhir */}
-        <div className="grid grid-cols-[100px_1fr_120px_1fr_40px_1fr]">
+        <div className="grid grid-cols-[60px_1.5fr_100px_1fr_40px_1fr]">
             {/* Row 1: Cuti Tahunan */}
             <div className="px-2 py-[1px] border-r border-b border-black col-span-5">1. Cuti Tahunan</div>
             <div className="px-2 py-[1px] border-b border-black"></div>
