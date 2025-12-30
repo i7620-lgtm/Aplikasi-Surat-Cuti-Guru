@@ -4,7 +4,7 @@ import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
 import { calculateBalineseDate } from '../utils/balineseCalendar';
 import { calculateWorkingDays, calculateWorkDuration } from '../utils/dateCalculator';
-import { Save, Trash2, Upload, Download } from 'lucide-react';
+import { Save, Trash2, Upload, Download, Info } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Riwayat from './Riwayat';
 
@@ -129,7 +129,6 @@ const DataForm: React.FC<DataFormProps> = ({
   setLeaveHistory
 }) => {
   const [isProcessing, setIsProcessing] = useState<keyof FormData | null>(null);
-  const currentYear = new Date().getFullYear();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleRemoveBackground = useCallback((id: keyof FormData) => {
@@ -255,7 +254,6 @@ const DataForm: React.FC<DataFormProps> = ({
       const workingDays = calculateWorkingDays(prev.tglMulai, prev.tglSelesai);
       const jatah = parseInt(prev.jatahCutiTahunan, 10) || 0;
       
-      // Re-calculate used leave internally to update formData state
       const nip = prev.nipPegawai?.trim();
       const myHistory = nip && leaveHistory[nip] ? leaveHistory[nip] : [];
       const currentYear = new Date().getFullYear();
@@ -306,6 +304,11 @@ const DataForm: React.FC<DataFormProps> = ({
           setFormData(prev => ({ ...prev, masaKerjaPegawai: newMasaKerja }));
       }
   }, [formData.tglMulaiKerja]);
+
+  // Perhitungan total sisa jatah cuti (N + N-1 + N-2)
+  const totalSisaCuti = (parseInt(formData.sisaCutiN, 10) || 0) + 
+                        (parseInt(formData.sisaCutiN_1, 10) || 0) + 
+                        (parseInt(formData.sisaCutiN_2, 10) || 0);
 
 
   return (
@@ -361,7 +364,7 @@ const DataForm: React.FC<DataFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputField label="Nama Lengkap" id="namaPegawai" value={formData.namaPegawai} onChange={handleChange} />
           <InputField label="NIP" id="nipPegawai" value={formData.nipPegawai} onChange={handleChange} placeholder="Digunakan sebagai ID riwayat cuti" />
-          <InputField label="Pangkat / Golongan" id="pangkatGolonganPegawai" value={formData.pangkatGolonganPegawai} onChange={handleChange} />
+          <InputField label="Pangkat / Golongan ruang" id="pangkatGolonganPegawai" value={formData.pangkatGolonganPegawai} onChange={handleChange} />
           <InputField label="Jabatan" id="jabatanPegawai" value={formData.jabatanPegawai} onChange={handleChange} />
           <InputField label="Unit Kerja" id="unitKerjaPegawai" value={formData.unitKerjaPegawai} onChange={handleChange} placeholder="Contoh: SD Negeri 2 Padangsambian" />
           <InputField label="Satuan Organisasi" id="satuanOrganisasi" value={formData.satuanOrganisasi} onChange={handleChange} />
@@ -406,9 +409,16 @@ const DataForm: React.FC<DataFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <InputField label="Jatah Cuti Tahunan" id="jatahCutiTahunan" value={formData.jatahCutiTahunan} onChange={handleChange} type="number" />
           <InputField label="Lama Cuti (Saat Ini)" id="lamaCuti" value={formData.lamaCuti} onChange={handleChange} readOnly={true} />
-          <InputField label="Sisa Cuti (Otomatis)" id="sisaCutiN" value={formData.sisaCutiN} onChange={handleChange} readOnly={true} helperText="Dihitung dari Jatah - Riwayat" />
-          <InputField label="Sisa Cuti (N-1)" id="sisaCutiN_1" value={formData.sisaCutiN_1} onChange={handleChange} type="number" required={false} />
-          <InputField label="Sisa Cuti (N-2)" id="sisaCutiN_2" value={formData.sisaCutiN_2} onChange={handleChange} type="number" required={false} />
+          <InputField label="Sisa Cuti (N)" id="sisaCutiN" value={formData.sisaCutiN} onChange={handleChange} readOnly={true} helperText="Dihitung dari Jatah - Riwayat" />
+          <InputField label="Sisa Cuti (N-1)" id="sisaCutiN_1" value={formData.sisaCutiN_1} onChange={handleChange} type="number" required={false} helperText="Maksimal 6 hari" />
+          <InputField label="Sisa Cuti (N-2)" id="sisaCutiN_2" value={formData.sisaCutiN_2} onChange={handleChange} type="number" required={false} helperText="Maksimal 6 hari" />
+          <div className="bg-green-50 p-3 rounded-md border border-green-200 flex items-center">
+             <div className="flex-grow">
+                <p className="text-xs font-bold text-green-800 uppercase">Total Hak Cuti Tersedia</p>
+                <p className="text-2xl font-black text-green-700">{totalSisaCuti} Hari</p>
+             </div>
+             <Info className="w-5 h-5 text-green-500 ml-2" />
+          </div>
         </div>
       </div>
 
@@ -417,7 +427,7 @@ const DataForm: React.FC<DataFormProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <InputField label="Nama Kepala Sekolah" id="namaAtasan" value={formData.namaAtasan} onChange={handleChange} />
           <InputField label="NIP Kepala Sekolah" id="nipAtasan" value={formData.nipAtasan} onChange={handleChange} />
-          <InputField label="Pangkat Atasan" id="pangkatGolonganAtasan" value={formData.pangkatGolonganAtasan} onChange={handleChange} />
+          <InputField label="Pangkat / Golongan ruang Kepala Sekolah" id="pangkatGolonganAtasan" value={formData.pangkatGolonganAtasan} onChange={handleChange} />
           <InputField label="Jabatan Penandatangan" id="jabatanAtasan" value={formData.jabatanAtasan} onChange={handleChange} readOnly={true} helperText="Otomatis mengikuti unit kerja." />
           <div className="md:col-span-2 border-t pt-4 mt-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             <InputField label="Nama Pejabat Berwenang" id="namaPejabat" value={formData.namaPejabat} onChange={handleChange} />
