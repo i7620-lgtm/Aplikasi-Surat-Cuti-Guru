@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { FormData } from '../../types';
 import { LetterType } from '../../types';
@@ -54,9 +55,10 @@ const SuratIzinDinas: React.FC<Props> = ({ formData, letterType }) => {
 
     const DataRow: React.FC<{ label: string; value: string | React.ReactNode }> = ({ label, value }) => (
         <tr>
-          <td className="w-52 align-top">{label}</td>
-          <td className="px-2 align-top">:</td>
-          <td className="align-top">{value || '-'}</td>
+          {/* w-1 dan whitespace-nowrap memastikan kolom pertama menyusut mengikuti label terpanjang tanpa turun baris */}
+          <td className="w-1 whitespace-nowrap align-top py-0.5">{label}</td>
+          <td className="w-1 px-2 align-top py-0.5">:</td>
+          <td className="align-top py-0.5">{value || '-'}</td>
         </tr>
       );
 
@@ -71,11 +73,11 @@ const SuratIzinDinas: React.FC<Props> = ({ formData, letterType }) => {
       
       <p className="mb-4">{getGivenToText()}</p>
 
-      <table className="w-full mb-6 text-[11pt]">
+      <table className="w-full mb-6 text-[11pt] table-auto border-collapse">
         <tbody>
           <DataRow label="Nama" value={namaPegawai} />
           <DataRow label="NIP" value={nipPegawai} />
-          <DataRow label="Pangkat / Golongan" value={pangkatGolonganPegawai} />
+          <DataRow label="Pangkat / Golongan ruang" value={pangkatGolonganPegawai} />
           <DataRow label="Jabatan" value={jabatanPegawai} />
           <DataRow label="Tempat Tugas" value={unitKerjaPegawai} />
           <DataRow label="Satuan Organisasi" value={satuanOrganisasi} />
