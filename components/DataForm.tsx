@@ -21,6 +21,43 @@ interface DataFormProps {
   setLeaveHistory: React.Dispatch<React.SetStateAction<Record<string, LeaveHistoryEntry[]>>>;
 }
 
+// Fungsi pembantu untuk mengecilkan gambar (untuk menghemat localStorage)
+const resizeImage = (base64Str: string, maxWidth = 400, maxHeight = 400): Promise<string> => {
+  return new Promise((resolve) => {
+    if (!base64Str) return resolve('');
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/png', 0.8));
+      } else {
+        resolve(base64Str);
+      }
+    };
+    img.onerror = () => resolve(base64Str);
+  });
+};
+
 const InputField: React.FC<{ label: string; id: keyof FormData; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void; type?: string; required?: boolean; placeholder?: string, rows?: number, readOnly?: boolean, helperText?: string }> = ({ label, id, value, onChange, type = 'text', required = true, placeholder, rows, readOnly=false, helperText }) => (
   <div>
     <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
@@ -62,12 +99,14 @@ const ImageUploadField: React.FC<{
   onRemoveBackground: (id: keyof FormData) => void;
   isProcessing: boolean;
 }> = ({ label, id, value, setFormData, onRemoveBackground, isProcessing }) => {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, [id]: reader.result as string }));
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        const resized = await resizeImage(base64);
+        setFormData(prev => ({ ...prev, [id]: resized }));
       };
       reader.readAsDataURL(file);
     }
@@ -165,34 +204,43 @@ const DataForm: React.FC<DataFormProps> = ({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
+  // EKSPOR: Menggunakan 2 Sheet terpisah
   const handleExport = () => {
-      const CHUNK_SIZE = 30000;
-      const dataToExport = Object.values(profiles).map(profile => {
-        const newProfile: Record<string, any> = { ...profile as Record<string, any> };
-
-        if (newProfile.logoDinas && newProfile.logoDinas.length > CHUNK_SIZE) {
-            for (let i = 0, part = 1; i < newProfile.logoDinas.length; i += CHUNK_SIZE, part++) {
-                newProfile[`logoDinas_${part}`] = newProfile.logoDinas.substring(i, i + CHUNK_SIZE);
-            }
-            delete newProfile.logoDinas;
-        }
-
-        if (newProfile.logoSekolah && newProfile.logoSekolah.length > CHUNK_SIZE) {
-            for (let i = 0, part = 1; i < newProfile.logoSekolah.length; i += CHUNK_SIZE, part++) {
-                newProfile[`logoSekolah_${part}`] = newProfile.logoSekolah.substring(i, i + CHUNK_SIZE);
-            }
-            delete newProfile.logoSekolah;
-        }
-
-        return newProfile;
-      });
-
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Profil');
-      XLSX.writeFile(wb, 'data_profil_cuti.xlsx');
+
+      // Sheet 1: Data Pegawai (Tanpa Logo)
+      const pegawaiData = Object.values(profiles).map(profile => {
+          const { logoDinas, logoSekolah, ...rest } = profile as any;
+          return rest;
+      });
+      const wsPegawai = XLSX.utils.json_to_sheet(pegawaiData);
+      XLSX.utils.book_append_sheet(wb, wsPegawai, 'Data Pegawai');
+
+      // Sheet 2: Logo Global
+      const CHUNK_SIZE = 30000;
+      const logoData: any[] = [];
+      
+      const processLogo = (label: string, data: string) => {
+          if (!data) return;
+          for (let i = 0, part = 1; i < data.length; i += CHUNK_SIZE, part++) {
+              logoData.push({
+                  Tipe: label,
+                  Urutan: part,
+                  Konten: data.substring(i, i + CHUNK_SIZE)
+              });
+          }
+      };
+
+      processLogo('LogoDinas', formData.logoDinas);
+      processLogo('LogoSekolah', formData.logoSekolah);
+
+      const wsLogos = XLSX.utils.json_to_sheet(logoData);
+      XLSX.utils.book_append_sheet(wb, wsLogos, 'Logo Aplikasi');
+
+      XLSX.writeFile(wb, 'data_cuti_guru_denpasar.xlsx');
   };
   
+  // IMPOR: Memproses 2 Sheet
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -201,42 +249,34 @@ const DataForm: React.FC<DataFormProps> = ({
       reader.onload = (ev) => {
           try {
             const workbook = XLSX.read(ev.target?.result, { type: 'array' });
-            const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]) as unknown[];
             
+            // 1. Proses Logo
+            let importedDinas = '';
+            let importedSekolah = '';
+            if (workbook.SheetNames.includes('Logo Aplikasi')) {
+                const logoJson = XLSX.utils.sheet_to_json(workbook.Sheets['Logo Aplikasi']) as any[];
+                importedDinas = logoJson.filter(row => row.Tipe === 'LogoDinas').sort((a,b) => a.Urutan - b.Urutan).map(row => row.Konten).join('');
+                importedSekolah = logoJson.filter(row => row.Tipe === 'LogoSekolah').sort((a,b) => a.Urutan - b.Urutan).map(row => row.Konten).join('');
+            }
+
+            // 2. Proses Pegawai
+            const pegawaiJson = XLSX.utils.sheet_to_json(workbook.Sheets['Data Pegawai']) as any[];
             const newProfiles = { ...profiles };
-            json.forEach((row) => {
-                if (typeof row === 'object' && row !== null) {
-                    const rowData = row as Record<string, any>;
-                    const profile: Partial<FormData> = { ...rowData };
-
-                    const dinasChunks: string[] = [];
-                    Object.keys(rowData).forEach(key => {
-                        const match = key.match(/^logoDinas_(\d+)$/);
-                        if (match) {
-                            dinasChunks[parseInt(match[1], 10) - 1] = rowData[key];
-                            delete (profile as any)[key];
-                        }
-                    });
-                    if (dinasChunks.length > 0) profile.logoDinas = dinasChunks.join('');
-
-                    const sekolahChunks: string[] = [];
-                    Object.keys(rowData).forEach(key => {
-                        const match = key.match(/^logoSekolah_(\d+)$/);
-                        if (match) {
-                            sekolahChunks[parseInt(match[1], 10) - 1] = rowData[key];
-                            delete (profile as any)[key];
-                        }
-                    });
-                    if (sekolahChunks.length > 0) profile.logoSekolah = sekolahChunks.join('');
-                    
-                    if (profile.namaPegawai) {
-                        newProfiles[profile.namaPegawai.trim()] = profile as FormData;
-                    }
+            pegawaiJson.forEach((row) => {
+                if (row.namaPegawai) {
+                    newProfiles[row.namaPegawai.trim()] = row;
                 }
             });
             
             setProfiles(newProfiles);
-            alert('Impor berhasil.');
+            if (importedDinas || importedSekolah) {
+                setFormData(prev => ({ 
+                    ...prev, 
+                    logoDinas: importedDinas || prev.logoDinas, 
+                    logoSekolah: importedSekolah || prev.logoSekolah 
+                }));
+            }
+            alert('Impor berhasil. Profil pegawai telah diperbarui.');
           } catch (error) {
               console.error("Gagal mengimpor file:", error);
               alert("Gagal mengimpor file. Pastikan format file benar.");
@@ -246,7 +286,6 @@ const DataForm: React.FC<DataFormProps> = ({
       e.target.value = '';
   };
 
-  // Effect: Menghitung Sisa Cuti dan Balinese Date secara otomatis
   useEffect(() => {
     setFormData(prev => {
       let updates: Partial<FormData> = {};
@@ -305,15 +344,12 @@ const DataForm: React.FC<DataFormProps> = ({
       }
   }, [formData.tglMulaiKerja]);
 
-  // Perhitungan total sisa jatah cuti (N + N-1 + N-2)
   const totalSisaCuti = (parseInt(formData.sisaCutiN, 10) || 0) + 
                         (parseInt(formData.sisaCutiN_1, 10) || 0) + 
                         (parseInt(formData.sisaCutiN_2, 10) || 0);
 
-
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Manajemen Profil */}
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-xl font-bold text-gray-800 border-b pb-3 mb-6">Manajemen Profil</h2>
         <div className="space-y-4">
@@ -342,6 +378,7 @@ const DataForm: React.FC<DataFormProps> = ({
              </button>
           </div>
           <input type="file" ref={fileInputRef} onChange={handleImport} accept=".xlsx, .xls" className="hidden" />
+          <p className="text-[10px] text-gray-400 italic">*Logo kini disimpan secara otomatis untuk seluruh profil.</p>
         </div>
       </div>
 
@@ -405,7 +442,6 @@ const DataForm: React.FC<DataFormProps> = ({
           </div>
         </div>
         
-        {/* Info Cuti Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <InputField label="Jatah Cuti Tahunan" id="jatahCutiTahunan" value={formData.jatahCutiTahunan} onChange={handleChange} type="number" />
           <InputField label="Lama Cuti (Saat Ini)" id="lamaCuti" value={formData.lamaCuti} onChange={handleChange} readOnly={true} />
@@ -454,7 +490,6 @@ const DataForm: React.FC<DataFormProps> = ({
         </div>
       </div>
       
-      {/* Table Riwayat Cuti Component - Moved to Bottom */}
       <Riwayat 
          formData={formData} 
          leaveHistory={leaveHistory} 
