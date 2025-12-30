@@ -28,13 +28,16 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
     </div>
   );
 
-  // Helper untuk menentukan ukuran font nama berdasarkan panjang karakter
-  const getNameFontSize = (name: string) => {
+  // Helper untuk menentukan ukuran font nama pegawai berdasarkan panjang karakter
+  const getPegawaiNameFontSize = (name: string) => {
     const len = (name || '').length;
     if (len > 35) return 'text-[8pt]';
     if (len > 25) return 'text-[9pt]';
     return 'text-[10pt]';
   };
+
+  // Ambil kelas ukuran font untuk pegawai satu kali agar bisa dipakai nama & nip
+  const pegawaiFontSizeClass = getPegawaiNameFontSize(namaPegawai);
 
   // Helper untuk mencoret satuan waktu yang tidak dipilih
   const DurationUnit = () => {
@@ -193,14 +196,14 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                     TELP: {telpPegawai}
                 </div>
                 
-                {/* Area Tanda Tangan Compact */}
+                {/* Area Tanda Tangan Compact (mb-[35px] = mb-10 minus 5px) */}
                 <div className="flex flex-col justify-center items-center flex-grow p-1 overflow-hidden">
-                    <div className="mb-10 text-center">Hormat saya,</div>
+                    <div className="mb-[35px] text-center">Hormat saya,</div>
                     <div className="text-center w-full px-1">
-                        <p className={`font-bold underline whitespace-nowrap ${getNameFontSize(namaPegawai)}`}>
+                        <p className={`font-bold underline whitespace-nowrap ${pegawaiFontSizeClass}`}>
                             {namaPegawai}
                         </p>
-                        <p className="text-[10pt]">NIP. {nipPegawai}</p>
+                        <p className={pegawaiFontSizeClass}>NIP. {nipPegawai}</p>
                     </div>
                 </div>
             </div>
@@ -230,6 +233,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             <div className="border-r border-black"></div>
             
             {/* Col 3 & 4 Combined: Tanda Tangan (Dikurangi 5px: min-h-[115px] -> min-h-[110px]) */}
+            {/* Nama atasan tetap 10pt sesuai instruksi perbaikan */}
             <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2 overflow-hidden">
                  {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
@@ -239,7 +243,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                  {/* Nama/NIP di bawah */}
                  <div className="flex flex-col items-center text-center w-full px-1">
                      <div className="text-center w-full">
-                        <p className={`font-bold underline whitespace-nowrap ${getNameFontSize(namaAtasan)}`}>
+                        <p className="font-bold underline text-[10pt] break-words">
                             {namaAtasan}
                         </p>
                         <p className="text-[10pt]">NIP. {nipAtasan}</p>
@@ -272,6 +276,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             <div className="border-r border-black"></div>
             
             {/* Col 3 & 4 Combined: Tanda Tangan (Dikurangi 5px: min-h-[115px] -> min-h-[110px]) */}
+            {/* Nama pejabat tetap 10pt sesuai instruksi perbaikan */}
             <div className="col-span-2 flex flex-col justify-between min-h-[110px] border-r border-b border-black p-2 overflow-hidden">
                  {/* Jabatan langsung di atas */}
                  <div className="w-full text-center">
@@ -281,7 +286,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                  {/* Nama/NIP di bawah */}
                  <div className="flex flex-col items-center text-center w-full px-1">
                      <div className="text-center w-full">
-                        <p className={`font-bold underline whitespace-nowrap ${getNameFontSize(namaPejabat)}`}>
+                        <p className="font-bold underline text-[10pt] break-words">
                             {namaPejabat}
                         </p>
                         <p className="text-[10pt]">NIP. {nipPejabat}</p>
