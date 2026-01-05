@@ -116,7 +116,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       {/* I. DATA PEGAWAI */}
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">I. DATA PEGAWAI</div>
-        <div className="grid grid-cols-[100px_1fr_100px_1fr]">
+        <div className="grid grid-cols-[82px_1fr_100px_1fr]">
           <div className="px-2 py-[1px] border-r border-b border-black">Nama</div>
           <div className="px-2 py-[1px] border-r border-b border-black overflow-hidden">
             <p 
@@ -198,7 +198,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                     TELP: {telpPegawai}
                 </div>
                 <div className="flex flex-col justify-center items-center flex-grow p-2">
-                    <div className="mb-[25px] text-center">Hormat saya,</div>
+                    <div className="mb-[30px] text-center">Hormat saya,</div>
                     <div className="text-center w-full overflow-hidden">
                         <p 
                           style={getShrinkToFitStyle(namaPegawai, nipPegawai, 28)}
@@ -234,7 +234,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             
             <div className=""></div> 
             <div className="border-r border-black"></div>
-            <div className="col-span-2 flex flex-col justify-between min-h-[96px] border-r border-b border-black p-2 overflow-hidden">
+            <div className="col-span-2 flex flex-col justify-between min-h-[101px] border-r border-b border-black p-2 overflow-hidden">
                  <div className="w-full text-center">
                     <p>{jabatanAtasan}</p>
                  </div>
@@ -272,7 +272,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             
             <div className=""></div> 
             <div className="border-r border-black"></div>
-            <div className="col-span-2 flex flex-col justify-between min-h-[105px] border-r border-b border-black p-2 overflow-hidden">
+            <div className="col-span-2 flex flex-col justify-between min-h-[113px] border-r border-b border-black p-2 overflow-hidden">
                  <div className="w-full text-center">
                     <p>{jabatanPejabat}</p>
                  </div>
