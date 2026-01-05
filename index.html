@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
   <head>
@@ -10,16 +9,14 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Balinese&family=Noto+Serif:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
-      /* INSTRUKSI CETAK TINGKAT TINGGI */
-      /* 215mm x 330mm adalah standar F4 / Folio / 8.5 x 13 inci */
       @page {
         size: 215mm 330mm !important;
         margin: 0 !important;
       }
       
       @media print {
-        /* Reset paksa untuk elemen global */
         * {
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
@@ -46,7 +43,6 @@
           display: none !important;
         }
 
-        /* PAKSA RESET SKALA PRATINJAU */
         .preview-scale-container {
           transform: none !important;
           transform-origin: unset !important;
@@ -58,7 +54,6 @@
           background: none !important;
         }
 
-        /* DEFINISI KERTAS FISIK F4 */
         .paper {
           margin: 0 !important;
           border: none !important;
@@ -71,12 +66,10 @@
           position: relative !important;
           page-break-after: always;
           page-break-inside: avoid;
-          /* Padding standar surat agar tidak terpotong margin fisik printer */
           padding: 15mm 20mm !important; 
         }
       }
 
-      /* Tampilan Pratinjau di Layar */
       .paper {
         background: white;
         margin: 0 auto;
@@ -88,7 +81,6 @@
         padding: 1.5cm 2cm;
       }
 
-      /* Dimensi visual pratinjau */
       .f4 { width: 215mm; height: 330mm; min-width: 215mm; }
       .a4 { width: 210mm; height: 297mm; min-width: 210mm; }
       .letter { width: 216mm; height: 279mm; min-width: 216mm; }
