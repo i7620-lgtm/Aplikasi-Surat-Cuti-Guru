@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
 import { calculateBalineseDate } from '../utils/balineseCalendar';
-import { calculateWorkingDays, calculateWorkDuration, isEligibleForLeave } from '../utils/dateCalculator';
-import { Save, Trash2, Info, AlertTriangle, CloudLightning, RefreshCw, CheckCircle2, Mail, User, ShieldCheck, CalendarDays } from 'lucide-react';
+import { calculateWorkingDays, isEligibleForLeave } from '../utils/dateCalculator';
+import { Save, Trash2, Info, AlertTriangle, RefreshCw, CheckCircle2, Mail, User, ShieldCheck, CalendarDays } from 'lucide-react';
 import Riwayat from './Riwayat';
 import { syncToCloud } from '../utils/syncService';
 
@@ -76,11 +77,11 @@ const DataForm: React.FC<DataFormProps> = ({
 }) => {
   const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
-  // URL dan Token diambil dari Environment Variable Vercel
-  const cloudUrl = process.env.GAS_WEB_APP_URL || '';
-  const cloudToken = process.env.SECURITY_TOKEN || '';
+  // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
+  const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || '';
+  // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
+  const cloudToken = ((import.meta as any).env?.VITE_SECURITY_TOKEN) || '';
   
-  // LOGIKA AUTO-SYNC (DEBOUNCE) - Latar Belakang
   useEffect(() => {
     if (!currentUserEmail || !cloudUrl || !cloudToken) return;
 
@@ -96,7 +97,7 @@ const DataForm: React.FC<DataFormProps> = ({
     }, 2000);
 
     return () => clearTimeout(syncTimeout);
-  }, [profiles, currentUserEmail, cloudUrl, cloudToken]);
+  }, [profiles, currentUserEmail, cloudUrl, cloudToken, leaveHistory]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -144,7 +145,7 @@ const DataForm: React.FC<DataFormProps> = ({
       
       return { ...prev, ...updates };
     });
-  }, [formData.tglMulai, formData.tglSelesai, formData.jatahCutiTahunan, formData.tglSurat, formData.unitKerjaPegawai, formData.nipPegawai, leaveHistory]); 
+  }, [formData.tglMulai, formData.tglSelesai, formData.jatahCutiTahunan, formData.tglSurat, formData.unitKerjaPegawai, formData.nipPegawai, leaveHistory, setFormData]); 
 
   const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
   const totalSisaCuti = isEligible 
@@ -155,9 +156,8 @@ const DataForm: React.FC<DataFormProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-24">
-      {/* STATUS SYNC FLOATING */}
       {lastSyncStatus !== 'idle' && (
-        <div className={`fixed bottom-6 right-6 z-[60] px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border text-[10px] font-black uppercase transition-all transform ${
+        <div className={`fixed bottom-6 right-6 z-[60] px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border text-[10px] font-black uppercase tracking-tight transition-all transform ${
           lastSyncStatus === 'syncing' ? 'bg-blue-600 text-white border-blue-400' :
           lastSyncStatus === 'success' ? 'bg-green-600 text-white border-green-400' :
           'bg-red-600 text-white border-red-400'
@@ -299,7 +299,15 @@ const DataForm: React.FC<DataFormProps> = ({
         </div>
       </div>
       
-      <Riwayat formData={formData} leaveHistory={leaveHistory} setLeaveHistory={setLeaveHistory} currentUserEmail={currentUserEmail} cloudUrl={cloudUrl} cloudToken={cloudToken} profiles={profiles} />
+      <Riwayat 
+        formData={formData} 
+        leaveHistory={leaveHistory} 
+        setLeaveHistory={setLeaveHistory} 
+        currentUserEmail={currentUserEmail} 
+        cloudUrl={cloudUrl} 
+        cloudToken={cloudToken} 
+        profiles={profiles} 
+      />
     </div>
   );
 };
