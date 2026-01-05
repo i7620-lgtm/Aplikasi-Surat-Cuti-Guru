@@ -1,3 +1,4 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -11,7 +12,7 @@ export default defineConfig(({ mode }) => {
     // Mendefinisikan process.env secara global agar bisa dibaca di file .tsx
     define: {
       'process.env.API_KEY': JSON.stringify(env.APP_KEY || env.API_KEY || ''),
-      'process.env.GOOGLE_CLIENT_ID': JSON.stringify(env.CLIENT_ID || env.GOOGLE_CLIENT_ID || '')
+      'process.env.CLIENT_ID': JSON.stringify(env.CLIENT_ID || env.GOOGLE_CLIENT_ID || '')
     },
     server: {
       port: 3000,
