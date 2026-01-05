@@ -1,44 +1,48 @@
-
 import React, { useState, useEffect } from 'react';
 import DataForm from './components/DataForm';
 import PrintPreview from './components/PrintPreview';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import type { FormData, LeaveHistoryEntry } from './types';
 import { LetterType } from './types';
-import { FileText, Printer } from 'lucide-react';
+import { FileText, LogOut } from 'lucide-react';
+import { fetchFromCloud } from './utils/syncService';
+
+const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; 
 
 const initialFormData: FormData = {
-  // Pegawai
+  // Pegawai - Dikosongkan
   namaPegawai: '',
   nipPegawai: '',
+  jenisKelamin: '',
+  emailPegawai: '',
   pangkatGolonganPegawai: '',
   jabatanPegawai: '',
   statusPegawai: 'Guru PNS',
   unitKerjaPegawai: '',
-  satuanOrganisasi: 'Dinas Pendidikan Kepemudaan dan Olahraga Kota Denpasar',
+  satuanOrganisasi: 'Dinas Pendidikan Kepemudaan Dan Olahraga Kota Denpasar',
   tglMulaiKerja: '',
   masaKerjaPegawai: '',
   alamatSelamaCuti: '',
   telpPegawai: '',
 
-  // Sekolah Info
-  alamatSekolah: 'Jalan Kebo Iwa Banjar Batuparas',
-  teleponSekolah: '-',
-  emailSekolah: 'sdnpadangsambian2@gmail.com',
+  // Sekolah Info - Dikosongkan
+  alamatSekolah: '',
+  teleponSekolah: '',
+  emailSekolah: '',
   websiteSekolah: '',
 
-  // Atasan Langsung
+  // Atasan Langsung - Nama/NIP Kosong
   namaAtasan: '',
   nipAtasan: '',
   jabatanAtasan: 'Kepala Sekolah',
   pangkatGolonganAtasan: '',
 
-  // Pejabat Berwenang
+  // Pejabat Berwenang - Default Sesuai Permintaan
   namaPejabat: 'Drs. Anak Agung Gede Wiratama, M.Ag.',
   nipPejabat: '19680404 199403 1 016',
   jabatanPejabat: 'Kepala Dinas Pendidikan Kepemudaan dan Olahraga Kota Denpasar',
 
-  // Detail Cuti
+  // Detail Cuti - Dikosongkan
   jenisCuti: LetterType.SURAT_IZIN_DINAS_TAHUNAN,
   alasanCuti: '',
   lamaCuti: '',
@@ -48,7 +52,7 @@ const initialFormData: FormData = {
   sisaCutiN: '12',
   sisaCutiN_1: '',
   sisaCutiN_2: '',
-  
+
   // Surat
   nomorSuratDinas: '',
   nomorSuratSekolah: '',
@@ -57,16 +61,23 @@ const initialFormData: FormData = {
   tembusan1: '',
   tembusan2: 'Yang Bersangkutan',
   tembusan3: 'Arsip',
-
-  // Logos (Kini dikosongkan di state awal profil karena disimpan global)
+  
+  // Logos - Kosong
   logoDinas: '',
   logoSekolah: '',
 };
 
+interface UserProfile {
+  name: string;
+  email: string;
+  picture: string;
+}
+
 const App: React.FC = () => {
   const [step, setStep] = useState<'form' | 'preview'>('form');
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isSyncingInitial, setIsSyncingInitial] = useState(false);
   
-  // State Logo Global (Hanya satu untuk seluruh aplikasi)
   const [globalLogos, setGlobalLogos] = useLocalStorage<{logoDinas: string, logoSekolah: string}>('globalLogos', {
     logoDinas: '',
     logoSekolah: ''
@@ -76,7 +87,6 @@ const App: React.FC = () => {
   const [activeProfileKey, setActiveProfileKey] = useLocalStorage<string | null>('activeProfileKey', null);
   const [leaveHistory, setLeaveHistory] = useLocalStorage<Record<string, LeaveHistoryEntry[]>>('leaveHistory', {});
 
-  // State form aktif yang menggabungkan data profil + logo global
   const [formData, setFormData] = useState<FormData>(() => {
     let base = initialFormData;
     if (activeProfileKey && profiles[activeProfileKey]) {
@@ -85,7 +95,73 @@ const App: React.FC = () => {
     return { ...base, ...globalLogos };
   });
 
-  // Sinkronisasi logo ke state global ketika berubah di form
+  useEffect(() => {
+    /* global google */
+    if (typeof window !== 'undefined' && (window as any).google) {
+      (window as any).google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleResponse
+      });
+      (window as any).google.accounts.id.renderButton(
+        document.getElementById("googleBtn"),
+        { theme: "outline", size: "large" }
+      );
+    }
+  }, []);
+
+  const handleGoogleResponse = async (response: any) => {
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const userData = {
+      name: payload.name,
+      email: payload.email,
+      picture: payload.picture
+    };
+    setCurrentUser(userData);
+    setFormData(prev => ({
+        ...prev,
+        emailPegawai: userData.email
+    }));
+
+    // OTOMATIS TARIK DATA DARI CLOUD SETELAH LOGIN
+    const cloudUrl = process.env.GAS_WEB_APP_URL || localStorage.getItem('cloud_sync_url');
+    const cloudToken = process.env.SECURITY_TOKEN || localStorage.getItem('cloud_sync_token');
+
+    if (cloudUrl && cloudToken) {
+        setIsSyncingInitial(true);
+        try {
+            const result = await fetchFromCloud(cloudUrl, cloudToken, userData.email);
+            if (result.status === 'success' && result.profiles) {
+                const newProfiles: Record<string, FormData> = {};
+                result.profiles.forEach((p: any) => {
+                    if (p.namaPegawai) newProfiles[p.namaPegawai] = p;
+                });
+                
+                const newHistory: Record<string, LeaveHistoryEntry[]> = {};
+                if (result.history) {
+                    result.history.forEach((h: any) => {
+                        const nip = h.nip_owner;
+                        if (!newHistory[nip]) newHistory[nip] = [];
+                        const { nip_owner, ...entry } = h;
+                        newHistory[nip].push(entry);
+                    });
+                }
+                setProfiles(newProfiles);
+                setLeaveHistory(newHistory);
+                console.log("Data cloud berhasil ditarik otomatis.");
+            }
+        } catch (e) {
+            console.error("Gagal menarik data cloud otomatis:", e);
+        } finally {
+            setIsSyncingInitial(false);
+        }
+    }
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setFormData(prev => ({ ...prev, emailPegawai: '' }));
+  };
+
   useEffect(() => {
     if (formData.logoDinas !== globalLogos.logoDinas || formData.logoSekolah !== globalLogos.logoSekolah) {
         setGlobalLogos({
@@ -100,76 +176,89 @@ const App: React.FC = () => {
     if (key && profiles[key]) {
       setFormData({ ...profiles[key], ...globalLogos });
     } else {
-      setFormData({ ...initialFormData, ...globalLogos });
+      setFormData({ ...initialFormData, ...globalLogos, emailPegawai: currentUser?.email || '' });
     }
   };
 
   const handleSaveProfile = () => {
     const key = formData.namaPegawai.trim();
     if (!key) {
-      alert('Nama Pegawai tidak boleh kosong untuk menyimpan profil.');
+      alert('Nama Pegawai diperlukan untuk menyimpan profil.');
       return;
     }
-
-    // Pisahkan logo dari data profil sebelum disimpan ke localStorage profil
     const { logoDinas, logoSekolah, ...profileDataWithoutLogos } = formData;
-    
     const newProfiles = { ...profiles, [key]: profileDataWithoutLogos as FormData };
     setProfiles(newProfiles);
     setActiveProfileKey(key);
-    alert(`Profil untuk "${key}" berhasil disimpan! (Logo disimpan secara global untuk seluruh profil)`);
   };
 
   const handleDeleteProfile = () => {
-    if (!activeProfileKey) {
-      alert('Tidak ada profil yang dipilih untuk dihapus.');
-      return;
-    }
-    if (window.confirm(`Apakah Anda yakin ingin menghapus profil "${activeProfileKey}"?`)) {
+    if (!activeProfileKey) return;
+    if (window.confirm(`Hapus profil "${activeProfileKey}"?`)) {
       const newProfiles = { ...profiles };
       delete newProfiles[activeProfileKey];
       setProfiles(newProfiles);
       setActiveProfileKey(null);
-      setFormData({ ...initialFormData, ...globalLogos });
-      alert(`Profil "${activeProfileKey}" telah dihapus.`);
+      setFormData({ ...initialFormData, ...globalLogos, emailPegawai: currentUser?.email || '' });
     }
   };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800 print:bg-white">
-      <header className="bg-white shadow-md print:hidden">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      <header className="bg-white shadow-md print:hidden sticky top-0 z-50">
+        <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-              Aplikasi Surat Cuti Guru
-            </h1>
-            <nav className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex items-center gap-2">
+                <FileText className="text-blue-600 w-6 h-6" />
+                <h1 className="text-lg font-black text-gray-800 hidden md:block uppercase tracking-tighter">
+                  Cuti Guru Online
+                </h1>
+            </div>
+
+            <div className="flex items-center space-x-2 md:space-x-4">
               <button
                 onClick={() => setStep('form')}
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                  step === 'form'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  step === 'form' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-100'
                 }`}
               >
-                <FileText className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Isi Data</span>
+                Data
               </button>
               <button
                 onClick={() => setStep('preview')}
-                className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-                  step === 'preview'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  step === 'preview' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'hover:bg-gray-100'
                 }`}
               >
-                <Printer className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Cetak Surat</span>
+                Cetak
               </button>
-            </nav>
+              
+              <div className="h-6 w-px bg-gray-200 mx-2"></div>
+
+              {currentUser ? (
+                <div className="flex items-center gap-2 bg-gray-50 p-1 pr-3 rounded-full border border-gray-100">
+                   <img src={currentUser.picture} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" alt="profile" />
+                   <div className="hidden lg:block text-left overflow-hidden max-w-[120px]">
+                       <p className="text-[10px] font-bold leading-none truncate">{currentUser.name}</p>
+                       <p className="text-[9px] text-gray-400 truncate">{currentUser.email}</p>
+                   </div>
+                   <button onClick={handleLogout} className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-full transition-colors">
+                       <LogOut className="w-4 h-4" />
+                   </button>
+                </div>
+              ) : (
+                <div id="googleBtn"></div>
+              )}
+            </div>
           </div>
         </div>
       </header>
+
+      {isSyncingInitial && (
+        <div className="bg-blue-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest animate-pulse">
+            Menyinkronkan data cloud Anda...
+        </div>
+      )}
 
       <main className="container mx-auto p-4 sm:p-6 lg:p-8 print:p-0 print:m-0 print:max-w-none">
         {step === 'form' ? (
@@ -184,6 +273,7 @@ const App: React.FC = () => {
             onDeleteProfile={handleDeleteProfile}
             leaveHistory={leaveHistory}
             setLeaveHistory={setLeaveHistory}
+            currentUserEmail={currentUser?.email}
           />
         ) : (
           <PrintPreview formData={formData} />
