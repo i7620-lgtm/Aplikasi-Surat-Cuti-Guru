@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
 import { calculateBalineseDate } from '../utils/balineseCalendar';
-import { calculateWorkingDays, calculateWorkDuration } from '../utils/dateCalculator';
-import { Save, Trash2, Upload, Download, Info } from 'lucide-react';
+import { calculateWorkingDays, calculateWorkDuration, isEligibleForLeave } from '../utils/dateCalculator';
+import { Save, Trash2, Upload, Download, Info, AlertTriangle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import Riwayat from './Riwayat';
 
@@ -228,11 +227,9 @@ const DataForm: React.FC<DataFormProps> = ({
 
       // Sheet Per Pegawai: Riwayat Cuti
       Object.entries(profiles).forEach(([name, profileData]) => {
-          // Fix: Added explicit casting to FormData to resolve 'Property nipPegawai does not exist on type unknown' error.
           const profile = profileData as FormData;
           const nip = profile.nipPegawai?.trim();
           if (nip && leaveHistory[nip] && leaveHistory[nip].length > 0) {
-              // Nama Sheet maksimal 31 karakter
               const sheetName = `RIW_${name.substring(0, 25)}`.trim();
               const historyData = leaveHistory[nip].map(entry => ({
                   'Tgl Mulai': entry.tglMulai,
@@ -240,7 +237,7 @@ const DataForm: React.FC<DataFormProps> = ({
                   'Lama (Hari)': entry.lamaCuti,
                   'Jenis': entry.jenisCuti,
                   'Alasan': entry.alasanCuti,
-                  'NIP_OWNER': nip // ID unik untuk relasi saat impor
+                  'NIP_OWNER': nip 
               }));
               const wsHistory = XLSX.utils.json_to_sheet(historyData);
               XLSX.utils.book_append_sheet(wb, wsHistory, sheetName);
@@ -259,7 +256,6 @@ const DataForm: React.FC<DataFormProps> = ({
           try {
             const workbook = XLSX.read(ev.target?.result, { type: 'array' });
             
-            // 1. Proses Logo
             let importedDinas = '';
             let importedSekolah = '';
             if (workbook.SheetNames.includes('Logo Aplikasi')) {
@@ -268,7 +264,6 @@ const DataForm: React.FC<DataFormProps> = ({
                 importedSekolah = logoJson.filter(row => row.Tipe === 'LogoSekolah').sort((a,b) => a.Urutan - b.Urutan).map(row => row.Konten).join('');
             }
 
-            // 2. Proses Pegawai
             const newProfiles = { ...profiles };
             if (workbook.SheetNames.includes('Data Pegawai')) {
                 const pegawaiJson = XLSX.utils.sheet_to_json(workbook.Sheets['Data Pegawai']) as any[];
@@ -277,7 +272,6 @@ const DataForm: React.FC<DataFormProps> = ({
                 });
             }
             
-            // 3. Proses Riwayat Cuti (Mencari Sheet berawalan RIW_)
             const newHistory = { ...leaveHistory };
             workbook.SheetNames.forEach(sheetName => {
                 if (sheetName.startsWith('RIW_')) {
@@ -363,9 +357,14 @@ const DataForm: React.FC<DataFormProps> = ({
       }
   }, [formData.tglMulaiKerja]);
 
-  const totalSisaCuti = (parseInt(formData.sisaCutiN, 10) || 0) + 
-                        (parseInt(formData.sisaCutiN_1, 10) || 0) + 
-                        (parseInt(formData.sisaCutiN_2, 10) || 0);
+  // Logika Kelayakan Cuti
+  const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
+
+  const totalSisaCuti = isEligible 
+    ? (parseInt(formData.sisaCutiN, 10) || 0) + 
+      (parseInt(formData.sisaCutiN_1, 10) || 0) + 
+      (parseInt(formData.sisaCutiN_2, 10) || 0)
+    : 0;
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -455,12 +454,16 @@ const DataForm: React.FC<DataFormProps> = ({
           <InputField label="Sisa Cuti (N)" id="sisaCutiN" value={formData.sisaCutiN} onChange={handleChange} readOnly />
           <InputField label="Sisa Cuti (N-1)" id="sisaCutiN_1" value={formData.sisaCutiN_1} onChange={handleChange} type="number" required={false} />
           <InputField label="Sisa Cuti (N-2)" id="sisaCutiN_2" value={formData.sisaCutiN_2} onChange={handleChange} type="number" required={false} />
-          <div className="bg-green-50 p-3 rounded-md border border-green-200 flex items-center">
+          
+          <div className={`${isEligible ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'} p-3 rounded-md border flex items-center`}>
              <div className="flex-grow">
-                <p className="text-xs font-bold text-green-800 uppercase">Total Hak Cuti Tersedia</p>
-                <p className="text-2xl font-black text-green-700">{totalSisaCuti} Hari</p>
+                <p className={`text-xs font-bold uppercase ${isEligible ? 'text-green-800' : 'text-red-800'}`}>Total Hak Cuti Tersedia</p>
+                <p className={`text-2xl font-black ${isEligible ? 'text-green-700' : 'text-red-700'}`}>{totalSisaCuti} Hari</p>
+                {!isEligible && formData.tglMulaiKerja && (
+                  <p className="text-[10px] text-red-600 font-bold italic mt-1">Belum 1 Tahun Masa Kerja</p>
+                )}
              </div>
-             <Info className="w-5 h-5 text-green-500 ml-2" />
+             {isEligible ? <Info className="w-5 h-5 text-green-500 ml-2" /> : <AlertTriangle className="w-5 h-5 text-red-500 ml-2" />}
           </div>
         </div>
       </div>
