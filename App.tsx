@@ -8,7 +8,8 @@ import { LetterType } from './types';
 import { FileText, LogOut } from 'lucide-react';
 import { fetchFromCloud } from './utils/syncService';
 
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; 
+// Mengambil Client ID dari environment variable yang sudah dikonfigurasi di vite.config.ts
+const GOOGLE_CLIENT_ID = process.env.CLIENT_ID || ""; 
 
 const initialFormData: FormData = {
   namaPegawai: '',
@@ -19,7 +20,7 @@ const initialFormData: FormData = {
   jabatanPegawai: '',
   statusPegawai: 'Guru PNS',
   unitKerjaPegawai: '',
-  satuanOrganisasi: 'Dinas Pendidikan Kepemudaan Dan Olahraga Kota Denpasar',
+  satuanOrganisasi: 'Dinas Pendidikan Kepemudaan dan Olahraga Kota Denpasar',
   tglMulaiKerja: '',
   masaKerjaPegawai: '',
   alamatSelamaCuti: '',
@@ -86,13 +87,22 @@ const App: React.FC = () => {
   useEffect(() => {
     /* global google */
     if (typeof window !== 'undefined' && (window as any).google) {
-      (window as any).google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleResponse
-      });
-      const btn = document.getElementById("googleBtn");
-      if (btn) {
-          (window as any).google.accounts.id.renderButton(btn, { theme: "outline", size: "large" });
+      if (!GOOGLE_CLIENT_ID) {
+        console.error("Google Client ID belum dikonfigurasi di Environment Variable (Vercel).");
+        return;
+      }
+
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleResponse
+        });
+        const btn = document.getElementById("googleBtn");
+        if (btn) {
+            (window as any).google.accounts.id.renderButton(btn, { theme: "outline", size: "large" });
+        }
+      } catch (error) {
+        console.error("Error initializing Google Sign-In:", error);
       }
     }
   }, []);
