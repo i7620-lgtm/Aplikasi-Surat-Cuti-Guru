@@ -3,10 +3,9 @@ import React, { useState, useEffect } from 'react';
 import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
 import { calculateBalineseDate } from '../utils/balineseCalendar';
-import { calculateWorkingDays, isEligibleForLeave } from '../utils/dateCalculator';
-import { Save, Trash2, Info, AlertTriangle, CheckCircle2, Mail, User, ShieldCheck, CalendarDays, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { calculateWorkingDays, isEligibleForLeave, calculateWorkDuration } from '../utils/dateCalculator';
+import { Save, Trash2, Info, AlertTriangle, CheckCircle2, Mail, User, ShieldCheck, CalendarDays, RefreshCw } from 'lucide-react';
 import Riwayat from './Riwayat';
-import { GoogleGenAI } from "@google/genai";
 
 interface DataFormProps {
   formData: FormData;
@@ -77,7 +76,6 @@ const DataForm: React.FC<DataFormProps> = ({
   currentUserEmail,
   syncStatus = 'idle'
 }) => {
-  const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -103,8 +101,12 @@ const DataForm: React.FC<DataFormProps> = ({
       const newLamaCuti = workingDays > 0 ? `${workingDays} hari kerja` : '';
       const newSisaCutiN = String(sisa);
       
+      // Logika Perhitungan Masa Kerja Otomatis
+      const newMasaKerja = calculateWorkDuration(prev.tglMulaiKerja);
+
       if (prev.lamaCuti !== newLamaCuti) updates.lamaCuti = newLamaCuti;
       if (prev.sisaCutiN !== newSisaCutiN) updates.sisaCutiN = newSisaCutiN;
+      if (prev.masaKerjaPegawai !== newMasaKerja) updates.masaKerjaPegawai = newMasaKerja;
       
       let balineseDate = '';
       if (prev.tglSurat && prev.tglSurat.includes('-')) {
@@ -125,38 +127,17 @@ const DataForm: React.FC<DataFormProps> = ({
       
       return { ...prev, ...updates };
     });
-  }, [formData.tglMulai, formData.tglSelesai, formData.jatahCutiTahunan, formData.tglSurat, formData.unitKerjaPegawai, formData.nipPegawai, leaveHistory, setFormData]); 
-
-  const handleGenerateAiReason = async () => {
-    if (!process.env.API_KEY) {
-        alert("API Key (APP_KEY) belum dikonfigurasi.");
-        return;
-    }
-
-    setIsAiGenerating(true);
-    try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const keywords = formData.alasanCuti || "urusan keluarga";
-        const prompt = `Buatkan satu kalimat alasan cuti yang sangat formal, sopan, dan baku untuk surat dinas pegawai negeri (guru/staf sekolah). 
-        Konteks: ${keywords}. 
-        Output hanya teks alasan saja tanpa tanda petik, maksimal 20 kata.`;
-        
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
-            contents: prompt,
-        });
-        
-        const generatedText = response.text?.trim();
-        if (generatedText) {
-            setFormData(prev => ({ ...prev, alasanCuti: generatedText }));
-        }
-    } catch (error) {
-        console.error("Gemini Error:", error);
-        alert("Gagal membuat alasan dengan AI. Periksa koneksi atau kuota API.");
-    } finally {
-        setIsAiGenerating(false);
-    }
-  };
+  }, [
+    formData.tglMulai, 
+    formData.tglSelesai, 
+    formData.jatahCutiTahunan, 
+    formData.tglSurat, 
+    formData.unitKerjaPegawai, 
+    formData.nipPegawai, 
+    formData.tglMulaiKerja, // Dependensi ditambahkan
+    leaveHistory, 
+    setFormData
+  ]); 
 
   const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
   const totalSisaCuti = isEligible 
@@ -224,8 +205,8 @@ const DataForm: React.FC<DataFormProps> = ({
             value={formData.emailPegawai} 
             onChange={handleChange} 
             icon={<Mail className="w-4 h-4" />}
-            readOnly={!!currentUserEmail}
-            helperText={currentUserEmail ? "Sinkronisasi Cloud Aktif" : "Login untuk menyimpan ke cloud"}
+            readOnly={false} 
+            helperText={currentUserEmail ? "Akun Cloud aktif, namun email ini bisa diubah sesuai kebutuhan surat" : "Opsional"}
           />
           <InputField label="Pangkat / Golongan ruang" id="pangkatGolonganPegawai" value={formData.pangkatGolonganPegawai} onChange={handleChange} placeholder="Pembina, IV/a..." />
           <InputField label="Jabatan" id="jabatanPegawai" value={formData.jabatanPegawai} onChange={handleChange} />
@@ -233,7 +214,7 @@ const DataForm: React.FC<DataFormProps> = ({
           <InputField label="Satuan Organisasi" id="satuanOrganisasi" value={formData.satuanOrganisasi} onChange={handleChange} />
           <InputField label="Status Pegawai" id="statusPegawai" value={formData.statusPegawai} onChange={handleChange} />
           <InputField label="Tanggal Mulai Kerja" id="tglMulaiKerja" value={formData.tglMulaiKerja} onChange={handleChange} type="date" required={false} />
-          <InputField label="Masa Kerja" id="masaKerjaPegawai" value={formData.masaKerjaPegawai} onChange={handleChange} required={false} readOnly helperText="Dihitung otomatis" />
+          <InputField label="Masa Kerja" id="masaKerjaPegawai" value={formData.masaKerjaPegawai} onChange={handleChange} required={false} readOnly helperText="Dihitung otomatis dari Tgl Mulai Kerja" />
           <InputField label="Nomor Telepon" id="telpPegawai" value={formData.telpPegawai} onChange={handleChange} placeholder="08XXXXXXXXXX" />
           <div className="md:col-span-2">
              <InputField label="Alamat Selama Cuti" id="alamatSelamaCuti" value={formData.alamatSelamaCuti} onChange={handleChange} type="textarea" placeholder="Alamat lengkap tujuan cuti..." />
@@ -284,21 +265,13 @@ const DataForm: React.FC<DataFormProps> = ({
           <div className="md:col-span-2">
             <div className="flex justify-between items-end mb-1">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Alasan Cuti</label>
-                <button 
-                  onClick={handleGenerateAiReason}
-                  disabled={isAiGenerating}
-                  className="flex items-center gap-1.5 px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
-                >
-                  {isAiGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                  {isAiGenerating ? 'Membuat...' : 'Buat Kalimat Formal (AI)'}
-                </button>
             </div>
             <textarea
               id="alasanCuti"
               name="alasanCuti"
               value={formData.alasanCuti}
               onChange={handleChange}
-              placeholder="Contoh input singkat: 'keluarga sakit' atau 'upacara adat'. Klik tombol AI untuk mempercantik kalimat."
+              placeholder="Contoh: 'Upacara Adat Ngaben' atau 'Sakit demam'."
               rows={3}
               className="w-full px-3 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
             />
