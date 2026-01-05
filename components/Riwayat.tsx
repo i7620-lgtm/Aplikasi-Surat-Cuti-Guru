@@ -1,10 +1,9 @@
-
 import React, { useCallback } from 'react';
 import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
-import { calculateWorkingDays } from '../utils/dateCalculator';
+import { calculateWorkingDays, isEligibleForLeave } from '../utils/dateCalculator';
 import { formatIndonesianDate } from '../utils/dateFormatter';
-import { History, PlusCircle, Trash2, CheckCircle2, CalendarDays } from 'lucide-react';
+import { History, PlusCircle, Trash2, CheckCircle2, CalendarDays, AlertTriangle } from 'lucide-react';
 
 interface RiwayatProps {
   formData: FormData;
@@ -77,10 +76,15 @@ const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHisto
     });
   };
 
-  // Menghitung total hak cuti tersedia (N + N-1 + N-2)
-  const totalTersedia = (parseInt(formData.sisaCutiN, 10) || 0) + 
-                        (parseInt(formData.sisaCutiN_1, 10) || 0) + 
-                        (parseInt(formData.sisaCutiN_2, 10) || 0);
+  // Logika Masa Kerja
+  const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
+
+  // Menghitung total hak cuti tersedia (N + N-1 + N-2) jika sudah berhak
+  const totalTersedia = isEligible 
+    ? (parseInt(formData.sisaCutiN, 10) || 0) + 
+      (parseInt(formData.sisaCutiN_1, 10) || 0) + 
+      (parseInt(formData.sisaCutiN_2, 10) || 0)
+    : 0;
   
   const totalTerpakai = calculateUsedLeaveCurrentYear();
 
@@ -104,14 +108,25 @@ const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHisto
 
       {/* Ringkasan Dashboard Riwayat */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 flex items-center shadow-sm">
-            <div className="bg-blue-100 p-3 rounded-full mr-4">
-                <CheckCircle2 className="w-8 h-8 text-blue-600" />
+         <div className={`${isEligible ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'} border rounded-xl p-5 flex items-center shadow-sm`}>
+            <div className={`${isEligible ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'} p-3 rounded-full mr-4`}>
+                {isEligible ? <CheckCircle2 className="w-8 h-8" /> : <AlertTriangle className="w-8 h-8" />}
             </div>
             <div>
-                <p className="text-sm font-semibold text-blue-800 uppercase tracking-wider">Total Hak Cuti Tersedia</p>
-                <p className="text-3xl font-black text-blue-900 leading-none mt-1">{totalTersedia} <span className="text-sm font-medium">Hari</span></p>
-                <p className="text-xs text-blue-600 mt-1 italic">*Akumulasi N + N-1 + N-2</p>
+                <p className={`text-sm font-semibold uppercase tracking-wider ${isEligible ? 'text-blue-800' : 'text-red-800'}`}>
+                  Total Hak Cuti Tersedia
+                </p>
+                <p className={`text-3xl font-black leading-none mt-1 ${isEligible ? 'text-blue-900' : 'text-red-900'}`}>
+                  {totalTersedia} <span className="text-sm font-medium">Hari</span>
+                </p>
+                {!isEligible && formData.tglMulaiKerja && (
+                  <p className="text-[10px] text-red-600 mt-1 font-bold italic">
+                    Belum berhak cuti (Masa kerja &lt; 1 tahun)
+                  </p>
+                )}
+                {isEligible && (
+                  <p className="text-xs text-blue-600 mt-1 italic">*Akumulasi N + N-1 + N-2</p>
+                )}
             </div>
          </div>
 
