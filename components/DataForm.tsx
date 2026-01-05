@@ -4,9 +4,10 @@ import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
 import { calculateBalineseDate } from '../utils/balineseCalendar';
 import { calculateWorkingDays, isEligibleForLeave } from '../utils/dateCalculator';
-import { Save, Trash2, Info, AlertTriangle, RefreshCw, CheckCircle2, Mail, User, ShieldCheck, CalendarDays } from 'lucide-react';
+import { Save, Trash2, Info, AlertTriangle, RefreshCw, CheckCircle2, Mail, User, ShieldCheck, CalendarDays, Sparkles, Loader2 } from 'lucide-react';
 import Riwayat from './Riwayat';
 import { syncToCloud } from '../utils/syncService';
+import { GoogleGenAI } from "@google/genai";
 
 interface DataFormProps {
   formData: FormData;
@@ -76,6 +77,7 @@ const DataForm: React.FC<DataFormProps> = ({
   currentUserEmail
 }) => {
   const [lastSyncStatus, setLastSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [isAiGenerating, setIsAiGenerating] = useState(false);
 
   // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
   const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || '';
@@ -146,6 +148,37 @@ const DataForm: React.FC<DataFormProps> = ({
       return { ...prev, ...updates };
     });
   }, [formData.tglMulai, formData.tglSelesai, formData.jatahCutiTahunan, formData.tglSurat, formData.unitKerjaPegawai, formData.nipPegawai, leaveHistory, setFormData]); 
+
+  const handleGenerateAiReason = async () => {
+    if (!process.env.API_KEY) {
+        alert("API Key (APP_KEY) belum dikonfigurasi.");
+        return;
+    }
+
+    setIsAiGenerating(true);
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const keywords = formData.alasanCuti || "urusan keluarga";
+        const prompt = `Buatkan satu kalimat alasan cuti yang sangat formal, sopan, dan baku untuk surat dinas pegawai negeri (guru/staf sekolah). 
+        Konteks: ${keywords}. 
+        Output hanya teks alasan saja tanpa tanda petik, maksimal 20 kata.`;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+        });
+        
+        const generatedText = response.text?.trim();
+        if (generatedText) {
+            setFormData(prev => ({ ...prev, alasanCuti: generatedText }));
+        }
+    } catch (error) {
+        console.error("Gemini Error:", error);
+        alert("Gagal membuat alasan dengan AI. Periksa koneksi atau kuota API.");
+    } finally {
+        setIsAiGenerating(false);
+    }
+  };
 
   const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
   const totalSisaCuti = isEligible 
@@ -279,7 +312,26 @@ const DataForm: React.FC<DataFormProps> = ({
           <InputField label="Tanggal Mulai" id="tglMulai" value={formData.tglMulai} onChange={handleChange} type="date" />
           <InputField label="Tanggal Selesai" id="tglSelesai" value={formData.tglSelesai} onChange={handleChange} type="date" />
           <div className="md:col-span-2">
-            <InputField label="Alasan Cuti" id="alasanCuti" value={formData.alasanCuti} onChange={handleChange} type="textarea" placeholder="Misal: Kepentingan keluarga / Sakit flu..." />
+            <div className="flex justify-between items-end mb-1">
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider ml-1">Alasan Cuti</label>
+                <button 
+                  onClick={handleGenerateAiReason}
+                  disabled={isAiGenerating}
+                  className="flex items-center gap-1.5 px-3 py-1 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50"
+                >
+                  {isAiGenerating ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  {isAiGenerating ? 'Membuat...' : 'Buat Kalimat Formal (AI)'}
+                </button>
+            </div>
+            <textarea
+              id="alasanCuti"
+              name="alasanCuti"
+              value={formData.alasanCuti}
+              onChange={handleChange}
+              placeholder="Contoh input singkat: 'keluarga sakit' atau 'upacara adat'. Klik tombol AI untuk mempercantik kalimat."
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+            />
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
