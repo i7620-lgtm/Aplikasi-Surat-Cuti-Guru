@@ -227,7 +227,9 @@ const DataForm: React.FC<DataFormProps> = ({
       XLSX.utils.book_append_sheet(wb, wsLogos, 'Logo Aplikasi');
 
       // Sheet Per Pegawai: Riwayat Cuti
-      Object.entries(profiles).forEach(([name, profile]) => {
+      Object.entries(profiles).forEach(([name, profileData]) => {
+          // Fix: Added explicit casting to FormData to resolve 'Property nipPegawai does not exist on type unknown' error.
+          const profile = profileData as FormData;
           const nip = profile.nipPegawai?.trim();
           if (nip && leaveHistory[nip] && leaveHistory[nip].length > 0) {
               // Nama Sheet maksimal 31 karakter
