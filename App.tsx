@@ -1,15 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DataForm from './components/DataForm';
 import PrintPreview from './components/PrintPreview';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import type { FormData, LeaveHistoryEntry } from './types';
 import { LetterType } from './types';
-import { FileText, LogOut } from 'lucide-react';
-import { fetchFromCloud } from './utils/syncService';
+import { FileText, LogOut, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { fetchFromCloud, syncToCloud } from './utils/syncService';
 
-// Mengambil Client ID dari environment variable yang sudah dikonfigurasi di vite.config.ts
-const GOOGLE_CLIENT_ID = process.env.CLIENT_ID || ""; 
+// Mengambil Client ID dengan fallback yang lebih aman
+const GOOGLE_CLIENT_ID = process.env.CLIENT_ID || (import.meta as any).env?.VITE_CLIENT_ID || "";
 
 const initialFormData: FormData = {
   namaPegawai: '',
@@ -65,6 +65,9 @@ interface UserProfile {
 const App: React.FC = () => {
   const [step, setStep] = useState<'form' | 'preview'>('form');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  
+  // State untuk status sinkronisasi terpusat
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [isSyncingInitial, setIsSyncingInitial] = useState(false);
   
   const [globalLogos, setGlobalLogos] = useLocalStorage<{logoDinas: string, logoSekolah: string}>('globalLogos', {
@@ -84,11 +87,43 @@ const App: React.FC = () => {
     return { ...base, ...globalLogos };
   });
 
+  // Efek Terpusat untuk Sinkronisasi Otomatis saat profiles atau leaveHistory berubah
+  useEffect(() => {
+    // Hanya sync jika user login dan data berubah
+    if (!currentUser || !currentUser.email) return;
+
+    const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || localStorage.getItem('cloud_sync_url');
+    const cloudToken = ((import.meta as any).env?.VITE_SECURITY_TOKEN) || localStorage.getItem('cloud_sync_token');
+
+    if (!cloudUrl || !cloudToken) return;
+
+    // Debounce sync agar tidak spamming saat mengetik
+    const syncTimeout = setTimeout(async () => {
+      setSyncStatus('syncing');
+      try {
+        const result = await syncToCloud(cloudUrl, cloudToken, profiles, leaveHistory, currentUser.email);
+        if (result.status === 'success') {
+          setSyncStatus('success');
+          setTimeout(() => setSyncStatus('idle'), 3000);
+        } else {
+          console.error("Sync returned error:", result.message);
+          setSyncStatus('error');
+        }
+      } catch (e) {
+        console.error("Sync failed:", e);
+        setSyncStatus('error');
+      }
+    }, 2000);
+
+    return () => clearTimeout(syncTimeout);
+  }, [profiles, leaveHistory, currentUser]);
+
   useEffect(() => {
     /* global google */
     if (typeof window !== 'undefined' && (window as any).google) {
+      // PERBAIKAN: Jangan tampilkan error/alert jika Client ID belum ada, cukup skip inisialisasi tombol.
       if (!GOOGLE_CLIENT_ID) {
-        console.error("Google Client ID belum dikonfigurasi di Environment Variable (Vercel).");
+        // Silent return agar user tidak terganggu pesan error
         return;
       }
 
@@ -117,9 +152,7 @@ const App: React.FC = () => {
     setCurrentUser(userData);
     setFormData(prev => ({ ...prev, emailPegawai: userData.email }));
 
-    // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
     const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || localStorage.getItem('cloud_sync_url');
-    // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
     const cloudToken = ((import.meta as any).env?.VITE_SECURITY_TOKEN) || localStorage.getItem('cloud_sync_token');
 
     if (cloudUrl && cloudToken) {
@@ -128,12 +161,14 @@ const App: React.FC = () => {
             const result = await fetchFromCloud(cloudUrl, cloudToken, userData.email);
             if (result.status === 'success' && result.profiles) {
                 const newProfiles: Record<string, FormData> = {};
-                result.profiles.forEach((p: any) => {
-                    if (p.namaPegawai) newProfiles[p.namaPegawai] = p;
-                });
+                if (Array.isArray(result.profiles)) {
+                   result.profiles.forEach((p: any) => {
+                       if (p.namaPegawai) newProfiles[p.namaPegawai] = p;
+                   });
+                }
                 
                 const newHistory: Record<string, LeaveHistoryEntry[]> = {};
-                if (result.history) {
+                if (result.history && Array.isArray(result.history)) {
                     result.history.forEach((h: any) => {
                         const nip = h.nip_owner;
                         if (!newHistory[nip]) newHistory[nip] = [];
@@ -183,8 +218,15 @@ const App: React.FC = () => {
     }
     const { logoDinas, logoSekolah, ...profileDataWithoutLogos } = formData;
     const newProfiles = { ...profiles, [key]: profileDataWithoutLogos as FormData };
+    
+    // Update state akan memicu useEffect sync di atas secara otomatis
     setProfiles(newProfiles);
     setActiveProfileKey(key);
+    
+    // Beri feedback visual sedikit
+    if(currentUser) {
+      setSyncStatus('syncing'); 
+    }
   };
 
   const handleDeleteProfile = () => {
@@ -192,6 +234,8 @@ const App: React.FC = () => {
     if (window.confirm(`Hapus profil "${activeProfileKey}"?`)) {
       const newProfiles = { ...profiles };
       delete newProfiles[activeProfileKey];
+      
+      // Update state memicu sync
       setProfiles(newProfiles);
       setActiveProfileKey(null);
       setFormData({ ...initialFormData, ...globalLogos, emailPegawai: currentUser?.email || '' });
@@ -255,6 +299,20 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {syncStatus !== 'idle' && currentUser && (
+        <div className={`fixed bottom-6 right-6 z-[60] px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border text-[10px] font-black uppercase tracking-tight transition-all transform ${
+          syncStatus === 'syncing' ? 'bg-blue-600 text-white border-blue-400' :
+          syncStatus === 'success' ? 'bg-green-600 text-white border-green-400' :
+          'bg-red-600 text-white border-red-400'
+        }`}>
+          {syncStatus === 'syncing' ? <RefreshCw className="w-3 h-3 animate-spin" /> : 
+           syncStatus === 'success' ? <CheckCircle2 className="w-3 h-3" /> : 
+           <AlertTriangle className="w-3 h-3" />}
+          {syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 
+           syncStatus === 'success' ? 'Data Tersimpan Aman' : 'Gagal Simpan Cloud'}
+        </div>
+      )}
+
       <main className="container mx-auto p-4 sm:p-6 lg:p-8 print:p-0 print:m-0 print:max-w-none">
         {step === 'form' ? (
           <DataForm 
@@ -269,6 +327,7 @@ const App: React.FC = () => {
             leaveHistory={leaveHistory}
             setLeaveHistory={setLeaveHistory}
             currentUserEmail={currentUser?.email}
+            syncStatus={syncStatus}
           />
         ) : (
           <PrintPreview formData={formData} />
