@@ -1,3 +1,4 @@
+
 export enum LetterType {
   SURAT_IZIN_KEPSEK = 'Surat Izin Cuti dari Kepala Sekolah',
   BLANGKO_CUTI = 'Blangko Permintaan dan Pemberian Cuti',
