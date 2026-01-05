@@ -22,6 +22,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
 
   /**
    * Logika "Shrink to Fit" - Menghitung beban visual teks dan mengembalikan objek style.
+   * Dikalibrasi untuk font Arial 10pt agar presisi terhadap lebar kontainer.
    */
   const getShrinkToFitStyle = (name: string, nip: string, capacityLimit: number): React.CSSProperties => {
     const fullNip = nip ? `NIP. ${nip}` : '';
@@ -39,11 +40,12 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
     const nipWeight = getVisualWeight(fullNip);
     const maxWeight = Math.max(nameWeight, nipWeight);
 
-    // Ukuran standar 10pt
+    // Ukuran standar 10pt. Jika beban visual melebihi kapasitas, ukuran font dikurangi.
     if (maxWeight <= capacityLimit) return { fontSize: '10pt' };
     
     const shrinkFactor = capacityLimit / maxWeight;
     const calculatedSize = 10 * shrinkFactor;
+    // Batas minimum font 6.5pt agar tetap terbaca
     const finalSize = Math.max(6.5, calculatedSize);
     
     return { fontSize: `${finalSize.toFixed(2)}pt` };
@@ -116,9 +118,9 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
       {/* I. DATA PEGAWAI */}
       <div className="mb-1 border border-black">
         <div className="px-2 py-[1px] font-bold border-b border-black">I. DATA PEGAWAI</div>
-        <div className="grid grid-cols-[82px_1fr_100px_1fr]">
-          <div className="px-2 py-[1px] border-r border-b border-black">Nama</div>
-          <div className="px-2 py-[1px] border-r border-b border-black overflow-hidden">
+        <div className="grid grid-cols-[74px_1fr_80px_1fr]">
+          <div className="px-2 py-[1px] border-r border-b border-black whitespace-nowrap">Nama</div>
+          <div className="px-2 py-[1px] border-r border-b border-black overflow-hidden flex items-center">
             <p 
               style={getShrinkToFitStyle(namaPegawai, '', 30)} 
               className="whitespace-nowrap inline-block max-w-full leading-tight"
@@ -126,15 +128,15 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
               {namaPegawai}
             </p>
           </div>
-          <div className="px-2 py-[1px] border-r border-b border-black">NIP</div>
+          <div className="px-2 py-[1px] border-r border-b border-black whitespace-nowrap">NIP</div>
           <div className="px-2 py-[1px] border-b border-black">{nipPegawai}</div>
           
-          <div className="px-2 py-[1px] border-r border-b border-black">Jabatan</div>
+          <div className="px-2 py-[1px] border-r border-b border-black whitespace-nowrap">Jabatan</div>
           <div className="px-2 py-[1px] border-r border-b border-black">{jabatanPegawai}</div>
-          <div className="px-2 py-[1px] border-r border-b border-black">Masa Kerja</div>
+          <div className="px-2 py-[1px] border-r border-b border-black whitespace-nowrap">Masa Kerja</div>
           <div className="px-2 py-[1px] border-b border-black">{masaKerjaPegawai}</div>
           
-          <div className="px-2 py-[1px] border-r border-black">Unit Kerja</div>
+          <div className="px-2 py-[1px] border-r border-black whitespace-nowrap">Unit Kerja</div>
           <div className="px-2 py-[1px] col-span-3">{unitKerjaPegawai}</div>
         </div>
       </div>
@@ -166,7 +168,7 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             <div className="px-2 py-[1px] border-r border-black whitespace-nowrap">
                 {getDurationNumber()} <DurationUnit />
             </div>
-            <div className="px-2 py-[1px] border-r border-black">mulai tanggal</div>
+            <div className="px-2 py-[1px] border-r border-black whitespace-nowrap">mulai tanggal</div>
             <div className="px-2 py-[1px] border-r border-black">{tglMulai ? formatIndonesianDate(tglMulai) : '-'}</div>
             <div className="px-2 py-[1px] border-r border-black text-center">s/d</div>
             <div className="px-2 py-[1px]">{tglSelesai ? formatIndonesianDate(tglSelesai) : '-'}</div>
@@ -197,9 +199,9 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
                 <div className="px-2 py-[1px] border-b border-black">
                     TELP: {telpPegawai}
                 </div>
-                <div className="flex flex-col justify-center items-center flex-grow p-2">
+                <div className="flex flex-col justify-center items-center flex-grow p-1">
                     <div className="mb-[30px] text-center">Hormat saya,</div>
-                    <div className="text-center w-full overflow-hidden">
+                    <div className="text-center w-full overflow-hidden px-1">
                         <p 
                           style={getShrinkToFitStyle(namaPegawai, nipPegawai, 28)}
                           className="font-bold underline whitespace-nowrap inline-block max-w-full leading-tight"
@@ -234,19 +236,19 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             
             <div className=""></div> 
             <div className="border-r border-black"></div>
-            <div className="col-span-2 flex flex-col justify-between min-h-[101px] border-r border-b border-black p-2 overflow-hidden">
+            <div className="col-span-2 flex flex-col justify-between min-h-[101px] border-r border-b border-black p-1 overflow-hidden">
                  <div className="w-full text-center">
                     <p>{jabatanAtasan}</p>
                  </div>
-                 <div className="text-center w-full overflow-hidden">
+                 <div className="text-center w-full overflow-hidden px-1">
                     <p 
-                      style={getShrinkToFitStyle(namaAtasan, nipAtasan, 38)}
+                      style={getShrinkToFitStyle(namaAtasan, nipAtasan, 35)}
                       className="font-bold underline whitespace-nowrap inline-block max-w-full leading-tight"
                     >
                         {namaAtasan || '................................'}
                     </p>
                     <p 
-                      style={getShrinkToFitStyle(namaAtasan, nipAtasan, 38)}
+                      style={getShrinkToFitStyle(namaAtasan, nipAtasan, 35)}
                       className="whitespace-nowrap inline-block max-w-full leading-tight"
                     >
                         NIP. {nipAtasan || '................................'}
@@ -272,19 +274,19 @@ const BlangkoCuti: React.FC<Props> = ({ formData }) => {
             
             <div className=""></div> 
             <div className="border-r border-black"></div>
-            <div className="col-span-2 flex flex-col justify-between min-h-[113px] border-r border-b border-black p-2 overflow-hidden">
+            <div className="col-span-2 flex flex-col justify-between min-h-[113px] border-r border-b border-black p-1 overflow-hidden">
                  <div className="w-full text-center">
                     <p>{jabatanPejabat}</p>
                  </div>
-                 <div className="text-center w-full overflow-hidden">
+                 <div className="text-center w-full overflow-hidden px-1">
                     <p 
-                      style={getShrinkToFitStyle(namaPejabat, nipPejabat, 38)}
+                      style={getShrinkToFitStyle(namaPejabat, nipPejabat, 35)}
                       className="font-bold underline whitespace-nowrap inline-block max-w-full leading-tight"
                     >
                         {namaPejabat || '................................'}
                     </p>
                     <p 
-                      style={getShrinkToFitStyle(namaPejabat, nipPejabat, 38)}
+                      style={getShrinkToFitStyle(namaPejabat, nipPejabat, 35)}
                       className="whitespace-nowrap inline-block max-w-full leading-tight"
                     >
                         NIP. {nipPejabat || '................................'}
