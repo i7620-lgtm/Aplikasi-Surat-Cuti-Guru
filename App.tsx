@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import DataForm from './components/DataForm';
 import PrintPreview from './components/PrintPreview';
@@ -10,7 +11,6 @@ import { fetchFromCloud } from './utils/syncService';
 const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"; 
 
 const initialFormData: FormData = {
-  // Pegawai - Dikosongkan
   namaPegawai: '',
   nipPegawai: '',
   jenisKelamin: '',
@@ -24,25 +24,17 @@ const initialFormData: FormData = {
   masaKerjaPegawai: '',
   alamatSelamaCuti: '',
   telpPegawai: '',
-
-  // Sekolah Info - Dikosongkan
   alamatSekolah: '',
   teleponSekolah: '',
   emailSekolah: '',
   websiteSekolah: '',
-
-  // Atasan Langsung - Nama/NIP Kosong
   namaAtasan: '',
   nipAtasan: '',
   jabatanAtasan: 'Kepala Sekolah',
   pangkatGolonganAtasan: '',
-
-  // Pejabat Berwenang - Default Sesuai Permintaan
   namaPejabat: 'Drs. Anak Agung Gede Wiratama, M.Ag.',
   nipPejabat: '19680404 199403 1 016',
   jabatanPejabat: 'Kepala Dinas Pendidikan Kepemudaan dan Olahraga Kota Denpasar',
-
-  // Detail Cuti - Dikosongkan
   jenisCuti: LetterType.SURAT_IZIN_DINAS_TAHUNAN,
   alasanCuti: '',
   lamaCuti: '',
@@ -52,8 +44,6 @@ const initialFormData: FormData = {
   sisaCutiN: '12',
   sisaCutiN_1: '',
   sisaCutiN_2: '',
-
-  // Surat
   nomorSuratDinas: '',
   nomorSuratSekolah: '',
   tglSurat: new Date().toISOString().split('T')[0],
@@ -61,8 +51,6 @@ const initialFormData: FormData = {
   tembusan1: '',
   tembusan2: 'Yang Bersangkutan',
   tembusan3: 'Arsip',
-  
-  // Logos - Kosong
   logoDinas: '',
   logoSekolah: '',
 };
@@ -102,10 +90,10 @@ const App: React.FC = () => {
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleResponse
       });
-      (window as any).google.accounts.id.renderButton(
-        document.getElementById("googleBtn"),
-        { theme: "outline", size: "large" }
-      );
+      const btn = document.getElementById("googleBtn");
+      if (btn) {
+          (window as any).google.accounts.id.renderButton(btn, { theme: "outline", size: "large" });
+      }
     }
   }, []);
 
@@ -117,14 +105,12 @@ const App: React.FC = () => {
       picture: payload.picture
     };
     setCurrentUser(userData);
-    setFormData(prev => ({
-        ...prev,
-        emailPegawai: userData.email
-    }));
+    setFormData(prev => ({ ...prev, emailPegawai: userData.email }));
 
-    // OTOMATIS TARIK DATA DARI CLOUD SETELAH LOGIN
-    const cloudUrl = process.env.GAS_WEB_APP_URL || localStorage.getItem('cloud_sync_url');
-    const cloudToken = process.env.SECURITY_TOKEN || localStorage.getItem('cloud_sync_token');
+    // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
+    const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || localStorage.getItem('cloud_sync_url');
+    // fix: Use type assertion to resolve 'Property env does not exist on type ImportMeta' in Vite/TS environment
+    const cloudToken = ((import.meta as any).env?.VITE_SECURITY_TOKEN) || localStorage.getItem('cloud_sync_token');
 
     if (cloudUrl && cloudToken) {
         setIsSyncingInitial(true);
@@ -147,7 +133,6 @@ const App: React.FC = () => {
                 }
                 setProfiles(newProfiles);
                 setLeaveHistory(newHistory);
-                console.log("Data cloud berhasil ditarik otomatis.");
             }
         } catch (e) {
             console.error("Gagal menarik data cloud otomatis:", e);
@@ -169,7 +154,7 @@ const App: React.FC = () => {
             logoSekolah: formData.logoSekolah
         });
     }
-  }, [formData.logoDinas, formData.logoSekolah]);
+  }, [formData.logoDinas, formData.logoSekolah, globalLogos.logoDinas, globalLogos.logoSekolah, setGlobalLogos]);
 
   const handleProfileChange = (key: string | null) => {
     setActiveProfileKey(key);
