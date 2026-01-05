@@ -211,3 +211,4 @@ const Riwayat: React.FC<RiwayatProps> = ({
 };
 
 export default Riwayat;
+ 
