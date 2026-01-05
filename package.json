@@ -16,7 +16,7 @@
     "xlsx": "^0.18.5",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.3.0",
-    "@google/genai": "^0.1.0"
+    "@google/genai": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
