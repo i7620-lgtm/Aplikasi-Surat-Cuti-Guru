@@ -1,17 +1,31 @@
+
 import React, { useCallback } from 'react';
 import type { FormData, LeaveHistoryEntry } from '../types';
 import { LetterType } from '../types';
 import { calculateWorkingDays, isEligibleForLeave } from '../utils/dateCalculator';
 import { formatIndonesianDate } from '../utils/dateFormatter';
-import { History, PlusCircle, Trash2, CheckCircle2, CalendarDays, AlertTriangle } from 'lucide-react';
+import { History, PlusCircle, Trash2, CheckCircle2, CalendarDays, AlertTriangle, Cloud, User } from 'lucide-react';
+import { syncToCloud } from '../utils/syncService';
 
-interface RiwayatProps {
+export interface RiwayatProps {
   formData: FormData;
   leaveHistory: Record<string, LeaveHistoryEntry[]>;
   setLeaveHistory: React.Dispatch<React.SetStateAction<Record<string, LeaveHistoryEntry[]>>>;
+  currentUserEmail?: string;
+  cloudUrl?: string;
+  cloudToken?: string;
+  profiles?: any;
 }
 
-const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHistory }) => {
+const Riwayat: React.FC<RiwayatProps> = ({ 
+  formData, 
+  leaveHistory, 
+  setLeaveHistory, 
+  currentUserEmail, 
+  cloudUrl, 
+  cloudToken, 
+  profiles 
+}) => {
   
   const getMyHistory = useCallback(() => {
     const nip = formData.nipPegawai?.trim();
@@ -31,20 +45,19 @@ const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHisto
       .reduce((sum, entry) => sum + entry.lamaCuti, 0);
   }, [getMyHistory]);
 
-  const handleSaveToHistory = () => {
+  const handleSaveToHistory = async () => {
     if (!formData.nipPegawai) {
-      alert("NIP Pegawai harus diisi untuk menyimpan riwayat.");
+      alert("NIP Pegawai diperlukan untuk menyimpan riwayat.");
       return;
     }
     if (!formData.tglMulai || !formData.tglSelesai) {
-      alert("Tanggal Mulai dan Selesai harus diisi.");
+      alert("Pilih rentang tanggal terlebih dahulu.");
       return;
     }
 
     const workingDays = calculateWorkingDays(formData.tglMulai, formData.tglSelesai);
-    
     if (workingDays <= 0) {
-      alert("Durasi cuti tidak valid (0 hari).");
+      alert("Durasi cuti tidak valid.");
       return;
     }
 
@@ -59,27 +72,33 @@ const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHisto
       timestamp: Date.now()
     };
 
-    setLeaveHistory(prev => {
-      const existing = prev[nip] || [];
-      return { ...prev, [nip]: [newEntry, ...existing] };
-    });
+    const newHistory = { ...leaveHistory, [nip]: [newEntry, ...(leaveHistory[nip] || [])] };
+    setLeaveHistory(newHistory);
 
-    alert("Riwayat cuti berhasil disimpan ke database lokal!");
+    if (currentUserEmail && cloudUrl && cloudToken && profiles) {
+        try {
+            await syncToCloud(cloudUrl, cloudToken, profiles, newHistory, currentUserEmail);
+            alert("✓ Berhasil dicatat dan disinkronkan ke Cloud!");
+        } catch (e) {
+            alert("Riwayat disimpan secara lokal, namun gagal sinkron ke Cloud.");
+        }
+    } else {
+        alert("Riwayat berhasil disimpan di perangkat ini.");
+    }
   };
 
-  const handleDeleteHistory = (id: string) => {
-    if (!window.confirm("Hapus riwayat cuti ini?")) return;
+  const handleDeleteHistory = async (id: string) => {
+    if (!window.confirm("Hapus riwayat ini?")) return;
     const nip = formData.nipPegawai.trim();
-    setLeaveHistory(prev => {
-      const existing = prev[nip] || [];
-      return { ...prev, [nip]: existing.filter(e => e.id !== id) };
-    });
+    const updatedHistory = { ...leaveHistory, [nip]: (leaveHistory[nip] || []).filter(e => e.id !== id) };
+    setLeaveHistory(updatedHistory);
+
+    if (currentUserEmail && cloudUrl && cloudToken && profiles) {
+        syncToCloud(cloudUrl, cloudToken, profiles, updatedHistory, currentUserEmail);
+    }
   };
 
-  // Logika Masa Kerja
   const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
-
-  // Menghitung total hak cuti tersedia (N + N-1 + N-2) jika sudah berhak
   const totalTersedia = isEligible 
     ? (parseInt(formData.sisaCutiN, 10) || 0) + 
       (parseInt(formData.sisaCutiN_1, 10) || 0) + 
@@ -89,111 +108,101 @@ const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHisto
   const totalTerpakai = calculateUsedLeaveCurrentYear();
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md space-y-6">
-      
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b pb-3 gap-4">
-         <div className="flex items-center">
-             <History className="w-6 h-6 mr-2 text-blue-600"/>
-             <h2 className="text-xl font-bold text-gray-800">Manajemen Riwayat Cuti</h2>
+    <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100 space-y-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-gray-100 pb-4 gap-4">
+         <div className="flex items-center gap-3">
+             <div className="bg-blue-600 p-2 rounded-xl text-white">
+                <History className="w-5 h-5"/>
+             </div>
+             <h2 className="text-xl font-black text-gray-800 uppercase tracking-tight">Manajemen Riwayat Cuti</h2>
          </div>
          <button 
            onClick={handleSaveToHistory}
-           className="flex items-center text-sm bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 shadow-sm transition-all"
-           title="Simpan data dari form di atas ke dalam riwayat"
+           className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95"
          >
-           <PlusCircle className="w-4 h-4 mr-2"/>
+           <PlusCircle className="w-5 h-5"/>
            Catat Permohonan Saat Ini
          </button>
       </div>
 
-      {/* Ringkasan Dashboard Riwayat */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <div className={`${isEligible ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'} border rounded-xl p-5 flex items-center shadow-sm`}>
-            <div className={`${isEligible ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'} p-3 rounded-full mr-4`}>
-                {isEligible ? <CheckCircle2 className="w-8 h-8" /> : <AlertTriangle className="w-8 h-8" />}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+         <div className={`${isEligible ? 'bg-blue-50 border-blue-100' : 'bg-red-50 border-red-100'} border rounded-2xl p-6 flex items-center shadow-sm`}>
+            <div className={`${isEligible ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'} p-4 rounded-full mr-4`}>
+                {isEligible ? <CheckCircle2 className="w-10 h-10" /> : <AlertTriangle className="w-10 h-10" />}
             </div>
             <div>
-                <p className={`text-sm font-semibold uppercase tracking-wider ${isEligible ? 'text-blue-800' : 'text-red-800'}`}>
-                  Total Hak Cuti Tersedia
+                <p className={`text-[10px] font-bold uppercase tracking-widest ${isEligible ? 'text-blue-800' : 'text-red-800'}`}>
+                  Sisa Hak Cuti (Tersedia)
                 </p>
-                <p className={`text-3xl font-black leading-none mt-1 ${isEligible ? 'text-blue-900' : 'text-red-900'}`}>
+                <p className={`text-4xl font-black leading-none mt-1 ${isEligible ? 'text-blue-900' : 'text-red-900'}`}>
                   {totalTersedia} <span className="text-sm font-medium">Hari</span>
                 </p>
-                {!isEligible && formData.tglMulaiKerja && (
-                  <p className="text-[10px] text-red-600 mt-1 font-bold italic">
-                    Belum berhak cuti (Masa kerja &lt; 1 tahun)
-                  </p>
-                )}
-                {isEligible && (
-                  <p className="text-xs text-blue-600 mt-1 italic">*Akumulasi N + N-1 + N-2</p>
+                {!isEligible && (
+                  <p className="text-[10px] text-red-600 mt-2 font-bold italic">Belum berhak cuti (Masa kerja &lt; 1 thn)</p>
                 )}
             </div>
          </div>
 
-         <div className="bg-orange-50 border border-orange-100 rounded-xl p-5 flex items-center shadow-sm">
-            <div className="bg-orange-100 p-3 rounded-full mr-4">
-                <CalendarDays className="w-8 h-8 text-orange-600" />
+         <div className="bg-orange-50 border border-orange-100 rounded-2xl p-6 flex items-center shadow-sm">
+            <div className="bg-orange-100 p-4 rounded-full mr-4">
+                <CalendarDays className="w-10 h-10 text-orange-600" />
             </div>
             <div>
-                <p className="text-sm font-semibold text-orange-800 uppercase tracking-wider">Total Hak Cuti Terpakai</p>
-                <p className="text-3xl font-black text-orange-900 leading-none mt-1">{totalTerpakai} <span className="text-sm font-medium">Hari</span></p>
-                <p className="text-xs text-orange-600 mt-1 italic">*Tercatat di riwayat tahun berjalan</p>
+                <p className="text-[10px] font-bold text-orange-800 uppercase tracking-widest">Cuti Terpakai Th. Berjalan</p>
+                <p className="text-4xl font-black text-orange-900 leading-none mt-1">{totalTerpakai} <span className="text-sm font-medium">Hari</span></p>
             </div>
          </div>
       </div>
       
-      {/* Table Riwayat Cuti */}
-      <div className="mt-4">
+      <div>
         {!formData.nipPegawai ? (
-           <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg py-10 text-center">
-              <p className="text-gray-500 text-sm font-medium">Silakan masukkan NIP Pegawai di formulir data pegawai</p>
-              <p className="text-gray-400 text-xs mt-1">untuk melihat riwayat cuti yang tersimpan.</p>
+           <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl py-12 text-center">
+              <User className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm font-bold">Masukkan NIP Pegawai untuk melihat riwayat</p>
            </div>
         ) : getMyHistory().length === 0 ? (
-           <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-lg py-10 text-center">
-              <p className="text-gray-500 text-sm font-medium">Belum ada riwayat cuti untuk NIP {formData.nipPegawai}</p>
-              <p className="text-gray-400 text-xs mt-1">Klik tombol "Catat Permohonan" untuk menyimpan data.</p>
+           <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl py-12 text-center">
+              <History className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500 text-sm font-bold">Belum ada riwayat tercatat</p>
+              <p className="text-slate-400 text-xs mt-1">Gunakan tombol biru di atas untuk mencatat data baru.</p>
            </div>
         ) : (
-          <div className="overflow-hidden border border-gray-200 rounded-xl shadow-sm">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+          <div className="overflow-hidden border border-gray-100 rounded-3xl shadow-sm">
+            <table className="min-w-full divide-y divide-gray-100">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tanggal</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Jenis Cuti</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Durasi</th>
-                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Alasan</th>
-                  <th className="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Aksi</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Tanggal Mulai</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Jenis</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Durasi</th>
+                  <th className="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Keterangan</th>
+                  <th className="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Aksi</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-50">
                 {getMyHistory().map((entry) => (
-                  <tr key={entry.id} className="hover:bg-blue-50/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-700">
                       {formatIndonesianDate(entry.tglMulai)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-tighter ${
                         entry.jenisCuti === LetterType.SURAT_IZIN_DINAS_TAHUNAN ? 'bg-green-100 text-green-700' :
                         entry.jenisCuti === LetterType.SURAT_IZIN_DINAS_SAKIT ? 'bg-red-100 text-red-700' :
-                        'bg-purple-100 text-purple-700'
+                        'bg-blue-100 text-blue-700'
                       }`}>
-                        {entry.jenisCuti === LetterType.SURAT_IZIN_DINAS_TAHUNAN ? 'Tahunan' : 
-                         entry.jenisCuti === LetterType.SURAT_IZIN_DINAS_SAKIT ? 'Sakit' : 
-                         entry.jenisCuti === LetterType.SURAT_IZIN_DINAS_MELAHIRKAN ? 'Melahirkan' : 'Lainnya'}
+                        {entry.jenisCuti.split(' ')[3] || 'Cuti'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-black text-slate-900">
                       {entry.lamaCuti} Hari
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                    <td className="px-6 py-4 text-xs text-slate-500 italic max-w-xs truncate">
                       {entry.alasanCuti || '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
                       <button 
                         onClick={() => handleDeleteHistory(entry.id)} 
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                        title="Hapus riwayat"
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -205,6 +214,15 @@ const Riwayat: React.FC<RiwayatProps> = ({ formData, leaveHistory, setLeaveHisto
           </div>
         )}
       </div>
+      
+      {currentUserEmail && (
+        <div className="bg-green-50 p-4 rounded-2xl flex items-center gap-3 border border-green-100">
+            <Cloud className="w-5 h-5 text-green-600" />
+            <p className="text-xs text-green-700 font-medium">
+                Sistem **Cloud Sync Aktif**: Setiap perubahan riwayat akan otomatis diperbarui di Google Sheets Anda.
+            </p>
+        </div>
+      )}
     </div>
   );
 };
