@@ -84,3 +84,4 @@ export interface FormData {
 }
 
 export type PaperSize = 'a4' | 'f4' | 'letter' | 'legal';
+ 
