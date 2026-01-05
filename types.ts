@@ -1,4 +1,3 @@
-
 export enum LetterType {
   SURAT_IZIN_KEPSEK = 'Surat Izin Cuti dari Kepala Sekolah',
   BLANGKO_CUTI = 'Blangko Permintaan dan Pemberian Cuti',
@@ -19,7 +18,7 @@ export interface LeaveHistoryEntry {
   id: string;
   tglMulai: string;
   tglSelesai: string;
-  lamaCuti: number; // Disimpan sebagai angka (jumlah hari)
+  lamaCuti: number;
   jenisCuti: LetterType;
   alasanCuti: string;
   timestamp: number;
@@ -29,6 +28,8 @@ export interface FormData {
   // Pegawai
   namaPegawai: string;
   nipPegawai: string;
+  jenisKelamin: string;
+  emailPegawai: string;
   pangkatGolonganPegawai: string;
   jabatanPegawai: string;
   statusPegawai: string;
@@ -59,7 +60,7 @@ export interface FormData {
   // Detail Cuti
   jenisCuti: LetterType;
   alasanCuti: string;
-  lamaCuti: string; // e.g., "3 hari", "1 bulan"
+  lamaCuti: string;
   tglMulai: string;
   tglSelesai: string;
   jatahCutiTahunan: string;
