@@ -5,7 +5,7 @@ import PrintPreview from './components/PrintPreview';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import type { FormData, LeaveHistoryEntry } from './types';
 import { LetterType } from './types';
-import { FileText, LogOut, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { FileText, LogOut, RefreshCw, CheckCircle2, AlertTriangle, Cloud } from 'lucide-react';
 import { fetchFromCloud, syncToCloud } from './utils/syncService';
 
 // Mengambil Client ID dengan fallback yang lebih aman
@@ -68,7 +68,6 @@ const App: React.FC = () => {
   
   // State untuk status sinkronisasi terpusat
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
-  const [isSyncingInitial, setIsSyncingInitial] = useState(false);
   
   const [globalLogos, setGlobalLogos] = useLocalStorage<{logoDinas: string, logoSekolah: string}>('globalLogos', {
     logoDinas: '',
@@ -89,7 +88,8 @@ const App: React.FC = () => {
 
   // Efek Terpusat untuk Sinkronisasi Otomatis saat profiles atau leaveHistory berubah
   useEffect(() => {
-    // Hanya sync jika user login dan data berubah
+    // Jika tidak login, data disimpan di LocalStorage (sudah ditangani oleh hook useLocalStorage)
+    // Jika login, kita mencoba sync ke cloud background
     if (!currentUser || !currentUser.email) return;
 
     const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || localStorage.getItem('cloud_sync_url');
@@ -97,7 +97,6 @@ const App: React.FC = () => {
 
     if (!cloudUrl || !cloudToken) return;
 
-    // Debounce sync agar tidak spamming saat mengetik
     const syncTimeout = setTimeout(async () => {
       setSyncStatus('syncing');
       try {
@@ -106,14 +105,16 @@ const App: React.FC = () => {
           setSyncStatus('success');
           setTimeout(() => setSyncStatus('idle'), 3000);
         } else {
-          console.error("Sync returned error:", result.message);
-          setSyncStatus('error');
+          // Silent error agar tidak mengganggu user jika koneksi lambat
+          console.warn("Sync warning:", result.message);
+          setSyncStatus('idle'); 
         }
       } catch (e) {
         console.error("Sync failed:", e);
         setSyncStatus('error');
+        setTimeout(() => setSyncStatus('idle'), 5000); // Reset error setelah 5 detik
       }
-    }, 2000);
+    }, 3000); // Delay 3 detik agar tidak spamming saat mengetik
 
     return () => clearTimeout(syncTimeout);
   }, [profiles, leaveHistory, currentUser]);
@@ -121,11 +122,7 @@ const App: React.FC = () => {
   useEffect(() => {
     /* global google */
     if (typeof window !== 'undefined' && (window as any).google) {
-      // PERBAIKAN: Jangan tampilkan error/alert jika Client ID belum ada, cukup skip inisialisasi tombol.
-      if (!GOOGLE_CLIENT_ID) {
-        // Silent return agar user tidak terganggu pesan error
-        return;
-      }
+      if (!GOOGLE_CLIENT_ID) return;
 
       try {
         (window as any).google.accounts.id.initialize({
@@ -150,46 +147,63 @@ const App: React.FC = () => {
       picture: payload.picture
     };
     setCurrentUser(userData);
-    setFormData(prev => ({ ...prev, emailPegawai: userData.email }));
-
+    
+    // FETCH ALL DATA SAAT LOGIN
     const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || localStorage.getItem('cloud_sync_url');
     const cloudToken = ((import.meta as any).env?.VITE_SECURITY_TOKEN) || localStorage.getItem('cloud_sync_token');
 
     if (cloudUrl && cloudToken) {
-        setIsSyncingInitial(true);
+        setSyncStatus('syncing');
         try {
-            const result = await fetchFromCloud(cloudUrl, cloudToken, userData.email);
+            // Panggil fetch tanpa filter email (ambil semua data global)
+            const result = await fetchFromCloud(cloudUrl, cloudToken, ''); 
+            
             if (result.status === 'success' && result.profiles) {
-                const newProfiles: Record<string, FormData> = {};
+                const cloudProfiles: Record<string, FormData> = {};
                 if (Array.isArray(result.profiles)) {
                    result.profiles.forEach((p: any) => {
-                       if (p.namaPegawai) newProfiles[p.namaPegawai] = p;
+                       if (p.namaPegawai) cloudProfiles[p.namaPegawai] = p;
                    });
                 }
                 
-                const newHistory: Record<string, LeaveHistoryEntry[]> = {};
+                // GABUNGKAN data cloud dengan data lokal yang sudah ada
+                // Data cloud menimpa data lokal jika nama sama, tapi data lokal lain tetap ada
+                setProfiles(prev => ({ ...prev, ...cloudProfiles }));
+
+                const cloudHistory: Record<string, LeaveHistoryEntry[]> = {};
                 if (result.history && Array.isArray(result.history)) {
                     result.history.forEach((h: any) => {
                         const nip = h.nip_owner;
-                        if (!newHistory[nip]) newHistory[nip] = [];
+                        if (!cloudHistory[nip]) cloudHistory[nip] = [];
                         const { nip_owner, ...entry } = h;
-                        newHistory[nip].push(entry);
+                        cloudHistory[nip].push(entry);
                     });
                 }
-                setProfiles(newProfiles);
-                setLeaveHistory(newHistory);
+                
+                // Merge history juga
+                setLeaveHistory(prev => {
+                    const merged = { ...prev };
+                    Object.keys(cloudHistory).forEach(nip => {
+                        // Strategi sederhana: ambil dari cloud jika ada, jika tidak pakai lokal
+                        // Bisa ditingkatkan dengan merge per-ID jika perlu
+                        merged[nip] = cloudHistory[nip];
+                    });
+                    return merged;
+                });
+                
+                setSyncStatus('success');
+                setTimeout(() => setSyncStatus('idle'), 2000);
             }
         } catch (e) {
-            console.error("Gagal menarik data cloud otomatis:", e);
-        } finally {
-            setIsSyncingInitial(false);
+            console.error("Gagal menarik data cloud:", e);
+            setSyncStatus('error');
         }
     }
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    setFormData(prev => ({ ...prev, emailPegawai: '' }));
+    setSyncStatus('idle');
   };
 
   useEffect(() => {
@@ -206,7 +220,7 @@ const App: React.FC = () => {
     if (key && profiles[key]) {
       setFormData({ ...profiles[key], ...globalLogos });
     } else {
-      setFormData({ ...initialFormData, ...globalLogos, emailPegawai: currentUser?.email || '' });
+      setFormData({ ...initialFormData, ...globalLogos });
     }
   };
 
@@ -219,11 +233,11 @@ const App: React.FC = () => {
     const { logoDinas, logoSekolah, ...profileDataWithoutLogos } = formData;
     const newProfiles = { ...profiles, [key]: profileDataWithoutLogos as FormData };
     
-    // Update state akan memicu useEffect sync di atas secara otomatis
+    // Simpan ke State (Otomatis ke LocalStorage)
     setProfiles(newProfiles);
     setActiveProfileKey(key);
     
-    // Beri feedback visual sedikit
+    // Trigger UI feedback
     if(currentUser) {
       setSyncStatus('syncing'); 
     }
@@ -235,10 +249,36 @@ const App: React.FC = () => {
       const newProfiles = { ...profiles };
       delete newProfiles[activeProfileKey];
       
-      // Update state memicu sync
       setProfiles(newProfiles);
       setActiveProfileKey(null);
-      setFormData({ ...initialFormData, ...globalLogos, emailPegawai: currentUser?.email || '' });
+      setFormData({ ...initialFormData, ...globalLogos });
+    }
+  };
+
+  // Fungsi manual refresh untuk user
+  const handleManualRefresh = async () => {
+    const cloudUrl = ((import.meta as any).env?.VITE_GAS_WEB_APP_URL) || localStorage.getItem('cloud_sync_url');
+    const cloudToken = ((import.meta as any).env?.VITE_SECURITY_TOKEN) || localStorage.getItem('cloud_sync_token');
+    
+    if(!cloudUrl || !currentUser) return;
+
+    setSyncStatus('syncing');
+    try {
+        const result = await fetchFromCloud(cloudUrl, cloudToken || '', '');
+        if (result.status === 'success' && result.profiles) {
+            // Update Logika sama dengan login
+            const cloudProfiles: Record<string, FormData> = {};
+            if (Array.isArray(result.profiles)) {
+                result.profiles.forEach((p: any) => {
+                    if (p.namaPegawai) cloudProfiles[p.namaPegawai] = p;
+                });
+            }
+            setProfiles(prev => ({ ...prev, ...cloudProfiles }));
+            setSyncStatus('success');
+            setTimeout(() => setSyncStatus('idle'), 2000);
+        }
+    } catch(e) {
+        setSyncStatus('error');
     }
   };
 
@@ -279,9 +319,12 @@ const App: React.FC = () => {
                    <img src={currentUser.picture} className="w-8 h-8 rounded-full border-2 border-white shadow-sm" alt="profile" />
                    <div className="hidden lg:block text-left overflow-hidden max-w-[120px]">
                        <p className="text-[10px] font-bold leading-none truncate">{currentUser.name}</p>
-                       <p className="text-[9px] text-gray-400 truncate">{currentUser.email}</p>
+                       <p className="text-[9px] text-gray-400 truncate">Online</p>
                    </div>
-                   <button onClick={handleLogout} className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-full transition-colors">
+                   <button onClick={handleManualRefresh} title="Ambil Data Terbaru" className="p-1.5 hover:bg-blue-50 text-blue-400 hover:text-blue-600 rounded-full transition-colors ml-1">
+                       <Cloud className="w-4 h-4" />
+                   </button>
+                   <button onClick={handleLogout} title="Logout" className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-full transition-colors">
                        <LogOut className="w-4 h-4" />
                    </button>
                 </div>
@@ -293,12 +336,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {isSyncingInitial && (
-        <div className="bg-blue-600 text-white text-[10px] font-bold text-center py-1 uppercase tracking-widest animate-pulse">
-            Menyinkronkan data cloud Anda...
-        </div>
-      )}
-
       {syncStatus !== 'idle' && currentUser && (
         <div className={`fixed bottom-6 right-6 z-[60] px-4 py-2 rounded-full shadow-2xl flex items-center gap-2 border text-[10px] font-black uppercase tracking-tight transition-all transform ${
           syncStatus === 'syncing' ? 'bg-blue-600 text-white border-blue-400' :
@@ -308,8 +345,8 @@ const App: React.FC = () => {
           {syncStatus === 'syncing' ? <RefreshCw className="w-3 h-3 animate-spin" /> : 
            syncStatus === 'success' ? <CheckCircle2 className="w-3 h-3" /> : 
            <AlertTriangle className="w-3 h-3" />}
-          {syncStatus === 'syncing' ? 'Menyimpan ke Cloud...' : 
-           syncStatus === 'success' ? 'Data Tersimpan Aman' : 'Gagal Simpan Cloud'}
+          {syncStatus === 'syncing' ? 'Sync Cloud...' : 
+           syncStatus === 'success' ? 'Data Cloud Terupdate' : 'Gagal Koneksi Cloud'}
         </div>
       )}
 
