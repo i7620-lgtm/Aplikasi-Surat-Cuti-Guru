@@ -5,26 +5,19 @@ import { LetterType } from '../types';
 import { calculateWorkingDays, isEligibleForLeave } from '../utils/dateCalculator';
 import { formatIndonesianDate } from '../utils/dateFormatter';
 import { History, PlusCircle, Trash2, CheckCircle2, CalendarDays, AlertTriangle, Cloud, User } from 'lucide-react';
-import { syncToCloud } from '../utils/syncService';
 
 export interface RiwayatProps {
   formData: FormData;
   leaveHistory: Record<string, LeaveHistoryEntry[]>;
   setLeaveHistory: React.Dispatch<React.SetStateAction<Record<string, LeaveHistoryEntry[]>>>;
   currentUserEmail?: string;
-  cloudUrl?: string;
-  cloudToken?: string;
-  profiles?: any;
 }
 
 const Riwayat: React.FC<RiwayatProps> = ({ 
   formData, 
   leaveHistory, 
   setLeaveHistory, 
-  currentUserEmail, 
-  cloudUrl, 
-  cloudToken, 
-  profiles 
+  currentUserEmail
 }) => {
   
   const getMyHistory = useCallback(() => {
@@ -72,30 +65,20 @@ const Riwayat: React.FC<RiwayatProps> = ({
       timestamp: Date.now()
     };
 
+    // Update state. App.tsx akan mendeteksi perubahan ini dan melakukan sinkronisasi otomatis.
     const newHistory = { ...leaveHistory, [nip]: [newEntry, ...(leaveHistory[nip] || [])] };
     setLeaveHistory(newHistory);
-
-    if (currentUserEmail && cloudUrl && cloudToken && profiles) {
-        try {
-            await syncToCloud(cloudUrl, cloudToken, profiles, newHistory, currentUserEmail);
-            alert("✓ Berhasil dicatat dan disinkronkan ke Cloud!");
-        } catch (e) {
-            alert("Riwayat disimpan secara lokal, namun gagal sinkron ke Cloud.");
-        }
-    } else {
-        alert("Riwayat berhasil disimpan di perangkat ini.");
-    }
+    
+    // Feedback instan
+    alert("✓ Riwayat berhasil dicatat! Sinkronisasi cloud akan berjalan otomatis.");
   };
 
   const handleDeleteHistory = async (id: string) => {
     if (!window.confirm("Hapus riwayat ini?")) return;
     const nip = formData.nipPegawai.trim();
+    // Update state. App.tsx akan mendeteksi perubahan ini dan melakukan sinkronisasi otomatis.
     const updatedHistory = { ...leaveHistory, [nip]: (leaveHistory[nip] || []).filter(e => e.id !== id) };
     setLeaveHistory(updatedHistory);
-
-    if (currentUserEmail && cloudUrl && cloudToken && profiles) {
-        syncToCloud(cloudUrl, cloudToken, profiles, updatedHistory, currentUserEmail);
-    }
   };
 
   const isEligible = isEligibleForLeave(formData.tglMulaiKerja);
