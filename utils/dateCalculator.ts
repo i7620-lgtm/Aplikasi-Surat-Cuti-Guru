@@ -1,4 +1,3 @@
-
 export const calculateWorkingDays = (startDateStr: string, endDateStr: string): number => {
   if (!startDateStr || !endDateStr) {
     return 0;
@@ -68,4 +67,33 @@ export const calculateWorkDuration = (startDateStr: string): string => {
   }
 
   return parts.join(', ');
+};
+
+/**
+ * Memeriksa apakah pegawai sudah berhak mendapatkan cuti tahunan (minimal 1 tahun masa kerja)
+ */
+export const isEligibleForLeave = (startDateStr: string): boolean => {
+  if (!startDateStr) return false;
+
+  const startDate = new Date(startDateStr);
+  const today = new Date();
+  
+  startDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  if (isNaN(startDate.getTime())) return false;
+
+  let years = today.getFullYear() - startDate.getFullYear();
+  let months = today.getMonth() - startDate.getMonth();
+  let days = today.getDate() - startDate.getDate();
+
+  if (days < 0) {
+    months--;
+  }
+
+  if (months < 0) {
+    years--;
+  }
+
+  return years >= 1;
 };
